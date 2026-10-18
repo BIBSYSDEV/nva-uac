@@ -31,6 +31,11 @@ public final class MigratedDatabase implements AutoCloseable {
     return dataSource;
   }
 
+  /** The JDBC URL, user and password, in the order a command-line entry point takes them. */
+  public String[] connectionArguments() {
+    return new String[] {container.getJdbcUrl(), container.getUsername(), container.getPassword()};
+  }
+
   @Override
   public void close() {
     container.stop();
