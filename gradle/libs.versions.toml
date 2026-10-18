@@ -30,3 +30,4 @@ quarkus-jdbc-postgresql = { module = "io.quarkus:quarkus-jdbc-postgresql" }
 quarkus-flyway = { module = "io.quarkus:quarkus-flyway" }
 quarkus-smallrye-health = { module = "io.quarkus:quarkus-smallrye-health" }
 quarkus-amazon-lambda-http = { module = "io.quarkus:quarkus-amazon-lambda-http" }
+quarkus-container-image-jib = { module = "io.quarkus:quarkus-container-image-jib" }
