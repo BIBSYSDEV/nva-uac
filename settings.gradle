@@ -37,3 +37,4 @@ dependencyResolutionManagement {
 rootProject.name = 'nva-uac'
 
 include 'core'
+include 'adapter-http'
