@@ -1,0 +1,17 @@
+plugins {
+    id 'nva.java-conventions'
+}
+
+group = 'no.sikt.nva.uac'
+
+nva {
+    java {
+        languageVersion = 25
+    }
+    errorprone {
+        allErrorsAsWarnings = false
+    }
+    pmd {
+        ignoreFailures = false
+    }
+}
