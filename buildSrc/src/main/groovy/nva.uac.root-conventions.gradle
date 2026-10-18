@@ -16,4 +16,8 @@ nva {
         minMethodCoverage = new BigDecimal('1.000')
         minClassCoverage = new BigDecimal('1.000')
     }
+    // jOOQ classes generated from the migrations are not hand-written code
+    generatedCode = [
+        'no/sikt/nva/uac/persistence/jooq/**'
+    ]
 }

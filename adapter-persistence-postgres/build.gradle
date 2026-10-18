@@ -1,0 +1,75 @@
+plugins {
+    id 'nva.uac.java-conventions'
+    id 'nu.studer.jooq'
+}
+
+dependencies {
+    api(libs.jooq)
+    jooqGenerator(libs.jooq.meta.extensions)
+    testImplementation(platform(nvaCatalog.testcontainers.bom))
+    testImplementation(nvaCatalog.assertj.core)
+    testImplementation(nvaCatalog.junit.jupiter.api)
+    testImplementation(nvaCatalog.junit.jupiter.params)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.flyway.core)
+    testRuntimeOnly(libs.flyway.postgresql)
+    testImplementation(libs.postgresql.driver)
+    testRuntimeOnly(nvaCatalog.junit.jupiter.engine)
+    testRuntimeOnly(nvaCatalog.junit.platform.launcher)
+}
+
+jooq {
+    version = libs.versions.jooq.asProvider().get()
+    configurations {
+        main {
+            generationTool {
+                generator {
+                    database {
+                        name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
+                        properties {
+                            property {
+                                key = 'scripts'
+                                value = 'src/main/resources/db/migration/*.sql'
+                            }
+                            property {
+                                key = 'sort'
+                                value = 'flyway'
+                            }
+                            property {
+                                key = 'unqualifiedSchema'
+                                value = 'none'
+                            }
+                            property {
+                                key = 'defaultNameCase'
+                                value = 'lower'
+                            }
+                            property {
+                                key = 'parseIgnoreComments'
+                                value = 'true'
+                            }
+                        }
+                    }
+                    generate {
+                        records = true
+                        fluentSetters = false
+                    }
+                    target {
+                        packageName = 'no.sikt.nva.uac.persistence.jooq'
+                        directory = 'build/generated-src/jooq/main'
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The jOOQ plugin adds org.jooq:jooq to implementation itself and offers no way to choose the
+// configuration; the api declaration above is the one that counts for consumers of the
+// generated classes, so the duplicate is excluded from the configuration advice
+dependencyAnalysis {
+    issues {
+        onIncorrectConfiguration {
+            exclude('org.jooq:jooq')
+        }
+    }
+}

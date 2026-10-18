@@ -5,9 +5,11 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.net/ruleset_2_0_0.xsd">
   <description>
-    The ruleset bundled with the shared NVA Gradle plugins, with one further exclusion:
+    The ruleset bundled with the shared NVA Gradle plugins, with two further exclusions.
     ImplicitFunctionalInterface, because the ports of the hexagonal core are single-method
-    interfaces by design and are not meant as functional interfaces.
+    interfaces by design and are not meant as functional interfaces. LawOfDemeter, because
+    jOOQ's typed query DSL (TABLE.COLUMN.eq(value)) is its intended usage and the rule would
+    flag every repository.
   </description>
 
   <rule ref="category/java/errorprone.xml">
@@ -39,6 +41,7 @@
     <exclude name="UseUtilityClass"/>
     <exclude name="UseObjectForClearerAPI"/>
     <exclude name="TooManyMethods"/>
+    <exclude name="LawOfDemeter"/>
   </rule>
 
 </ruleset>
