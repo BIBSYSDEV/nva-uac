@@ -1,0 +1,14 @@
+plugins {
+    id 'nva.uac.java-conventions'
+}
+
+dependencies {
+    api(libs.jooq)
+    implementation(project(':adapter-persistence-postgres'))
+    implementation(project(':core'))
+    testImplementation(testFixtures(project(':adapter-persistence-postgres')))
+    testImplementation(nvaCatalog.assertj.core)
+    testImplementation(nvaCatalog.junit.jupiter.api)
+    testRuntimeOnly(nvaCatalog.junit.jupiter.engine)
+    testRuntimeOnly(nvaCatalog.junit.platform.launcher)
+}
