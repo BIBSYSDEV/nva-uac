@@ -6,6 +6,12 @@ nva {
     dependencyAnalysis {
         enforced = true
     }
+    spectral {
+        documents = [
+            'adapter-http/src/main/resources/openapi/*.yaml'
+        ]
+        rulesetFile = file('.spectral.yaml')
+    }
     jacoco {
         minMethodCoverage = new BigDecimal('1.000')
         minClassCoverage = new BigDecimal('1.000')
