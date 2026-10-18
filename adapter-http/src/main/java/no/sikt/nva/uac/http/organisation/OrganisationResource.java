@@ -1,11 +1,13 @@
 package no.sikt.nva.uac.http.organisation;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import no.sikt.nva.uac.http.security.Scopes;
 import no.sikt.nva.uac.organisation.FindUnit;
 import no.sikt.nva.uac.organisation.UnitIdentifier;
 
@@ -28,6 +30,7 @@ public class OrganisationResource {
   @GET
   @Path("/{identifier}")
   @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed({Scopes.NVA_BACKEND, Scopes.ORGANISATION_READ})
   public UnitRepresentation byIdentifier(@PathParam("identifier") String identifier) {
     return findUnit
         .byIdentifier(UnitIdentifier.parse(identifier))

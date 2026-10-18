@@ -26,6 +26,16 @@ public record Problem(URI type, String title, int status, String detail) {
     return aboutBlank(Response.Status.BAD_REQUEST, detail);
   }
 
+  /** A 401 problem: the request carries no usable credentials. */
+  public static Problem unauthorized(String detail) {
+    return aboutBlank(Response.Status.UNAUTHORIZED, detail);
+  }
+
+  /** A 403 problem: the credentials do not grant what the operation requires. */
+  public static Problem forbidden(String detail) {
+    return aboutBlank(Response.Status.FORBIDDEN, detail);
+  }
+
   /** A 404 problem: nothing is at the requested path. */
   public static Problem notFound(String detail) {
     return aboutBlank(Response.Status.NOT_FOUND, detail);

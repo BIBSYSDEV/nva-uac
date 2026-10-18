@@ -17,6 +17,11 @@ servers:
     description: Production
   - url: https://api.dev.nva.aws.unit.no/uac
     description: Development
+security:
+  - nvaOAuth2:
+      - https://api.nva.unit.no/scopes/backend
+  - nvaOAuth2:
+      - uac/organisation.read
 tags:
   - name: organisation
     description: Institutions and the units within them.
@@ -41,9 +46,27 @@ paths:
                 $ref: "#/components/schemas/Unit"
         "400":
           $ref: "#/components/responses/MalformedIdentifier"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 components:
+  securitySchemes:
+    nvaOAuth2:
+      type: oauth2
+      description: >-
+        A client-credentials token from the NVA issuer of the environment. The token's scope
+        claim decides what the caller may do; an operation lists the scopes that grant it.
+      flows:
+        clientCredentials:
+          tokenUrl: https://nva-dev.auth.eu-west-1.amazoncognito.com/oauth2/token
+          scopes:
+            https://api.nva.unit.no/scopes/backend: >-
+              The scope every NVA backend client holds; grants read access until the service's
+              own scopes are registered.
+            uac/organisation.read: Read organisational units.
   parameters:
     unitIdentifier:
       name: identifier
@@ -105,6 +128,23 @@ components:
   responses:
     MalformedIdentifier:
       description: The identifier is not in the required form.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: The request carries no usable bearer token.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+            const: Bearer
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: The token does not grant a scope the operation requires.
       content:
         application/problem+json:
           schema:
