@@ -1,0 +1,33 @@
+version: 0.2
+
+# Applies the migrations before the function alias is shifted, or drops a branch schema when
+# DROP_SCHEMA is "true". The CodeBuild project runs in the data tier's VPC with the application
+# security group. SCHEMA_NAME names the schema of the stack concerned: public, or the branch.
+
+env:
+  variables:
+    GRADLE_OPTS: "-Dorg.gradle.configuration-cache=false"
+    SCHEMA_NAME: public
+    DROP_SCHEMA: "false"
+  parameter-store:
+    PROXY_ENDPOINT: /NVA/UAC/Database/ProxyEndpoint
+    DATABASE_NAME: /NVA/UAC/Database/Name
+    CREDENTIALS_SECRET_ARN: /NVA/UAC/Database/CredentialsSecretArn
+phases:
+  install:
+    runtime-versions:
+      java: corretto25
+  build:
+    commands:
+      - CREDENTIALS=$(aws secretsmanager get-secret-value --secret-id "$CREDENTIALS_SECRET_ARN" --query SecretString --output text)
+      - DATABASE_USER=$(echo "$CREDENTIALS" | jq -r .username)
+      - DATABASE_PASSWORD=$(echo "$CREDENTIALS" | jq -r .password)
+      - if [ "$DROP_SCHEMA" = "true" ] && [ "$SCHEMA_NAME" = "public" ]; then echo "Refusing to drop the public schema" >&2; exit 1; fi
+      - if [ "$DROP_SCHEMA" = "true" ]; then TASK=flywayClean; CLEAN=false; else TASK=flywayMigrate; CLEAN=true; fi
+      - >
+        ./gradlew :adapter-persistence-postgres:$TASK
+        -Dflyway.url="jdbc:postgresql://${PROXY_ENDPOINT}:5432/${DATABASE_NAME}?sslmode=require"
+        -Dflyway.user="$DATABASE_USER"
+        -Dflyway.password="$DATABASE_PASSWORD"
+        -Dflyway.schemas="$SCHEMA_NAME"
+        -Dflyway.cleanDisabled="$CLEAN"

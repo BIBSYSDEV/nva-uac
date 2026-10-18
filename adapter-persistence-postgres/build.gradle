@@ -2,6 +2,7 @@ plugins {
     id 'nva.uac.java-conventions'
     id 'java-test-fixtures'
     id 'nu.studer.jooq'
+    id 'org.flywaydb.flyway'
 }
 
 dependencies {
@@ -75,4 +76,13 @@ dependencyAnalysis {
             exclude('org.jooq:jooq')
         }
     }
+}
+
+// The pipeline's migration step: ./gradlew :adapter-persistence-postgres:flywayMigrate with
+// flyway.url, flyway.user, flyway.password and flyway.schemas given as system properties
+flyway {
+    locations = [
+        'filesystem:src/main/resources/db/migration'
+    ]
+    cleanDisabled = true
 }

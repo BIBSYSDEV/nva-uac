@@ -11,4 +11,7 @@ dependencies {
     implementation 'com.github.bibsysdev:nva-gradle-plugins:1.0.12'
     implementation(libs.quarkus.gradle.plugin)
     implementation(libs.jooq.gradle.plugin)
+    implementation(libs.flyway.gradle.plugin)
+    implementation(libs.flyway.postgresql)
+    implementation(libs.postgresql.driver)
 }
