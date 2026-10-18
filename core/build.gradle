@@ -1,3 +1,11 @@
 plugins {
     id 'nva.uac.java-conventions'
 }
+
+dependencies {
+    testImplementation(nvaCatalog.assertj.core)
+    testImplementation(nvaCatalog.junit.jupiter.api)
+    testImplementation(nvaCatalog.junit.jupiter.params)
+    testRuntimeOnly(nvaCatalog.junit.jupiter.engine)
+    testRuntimeOnly(nvaCatalog.junit.platform.launcher)
+}
