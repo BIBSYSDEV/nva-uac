@@ -1,7 +1,7 @@
 # nva-uac: plan
 
-This plan refines [required.md](required.md). It is derived from
-[cristin-upstream-usage.md](cristin-upstream-usage.md) and from the source of
+This plan refines [required.md](docs/required.md). It is derived from
+[cristin-upstream-usage.md](docs/cristin-upstream-usage.md) and from the source of
 [nva-cristin-service](https://github.com/BIBSYSDEV/nva-cristin-service) and
 [nva-identity-service](https://github.com/BIBSYSDEV/nva-identity-service), read at `main` as of
 14 October 2026. Section numbers in brackets, e.g. [4.3], refer to the usage report.
