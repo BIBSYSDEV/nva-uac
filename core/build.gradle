@@ -1,5 +1,6 @@
 plugins {
     id 'nva.uac.java-conventions'
+    id 'java-test-fixtures'
 }
 
 dependencies {
