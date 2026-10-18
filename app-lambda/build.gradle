@@ -1,0 +1,11 @@
+plugins {
+    id 'nva.uac.quarkus-conventions'
+}
+
+dependencies {
+    implementation(project(':assembly'))
+    implementation(libs.quarkus.amazon.lambda.http)
+    testImplementation(project(':test-support'))
+    testImplementation(libs.quarkus.test.oidc.server)
+    testImplementation(testFixtures(project(':adapter-persistence-postgres')))
+}
