@@ -1,0 +1,39 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    // The nva.* plugins are published to Maven Central, not to the Gradle Plugin Portal
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id.startsWith('nva.')) {
+                useModule("com.github.bibsysdev:nva-gradle-plugins:${requested.version}")
+            }
+        }
+    }
+}
+
+plugins {
+    // Downloads the Amazon Corretto 21 toolchain when no local installation matches
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+    versionCatalogs {
+        // Third-party dependency versions shared across NVA
+        create('nvaCatalog') {
+            from("com.github.bibsysdev:versions:${nvaCommonsVersion}")
+        }
+        // The nva-commons libraries
+        create('nvaLibs') {
+            from("com.github.bibsysdev:nva-libs:${nvaCommonsVersion}")
+        }
+    }
+}
+
+rootProject.name = 'nva-uac'
+
+include 'core'

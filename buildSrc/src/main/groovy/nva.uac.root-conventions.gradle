@@ -1,0 +1,13 @@
+plugins {
+    id 'nva.root-module-conventions'
+}
+
+nva {
+    dependencyAnalysis {
+        enforced = true
+    }
+    jacoco {
+        minMethodCoverage = new BigDecimal('1.000')
+        minClassCoverage = new BigDecimal('1.000')
+    }
+}
