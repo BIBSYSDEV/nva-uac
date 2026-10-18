@@ -3,7 +3,7 @@ package no.sikt.nva.uac.http.organisation;
 import static io.restassured.RestAssured.given;
 import static no.sikt.nva.uac.http.organisation.OrganisationTestWiring.FACULTY_AT_UIO;
 import static no.sikt.nva.uac.http.organisation.OrganisationTestWiring.UIO;
-import static no.sikt.nva.uac.http.security.MockIssuer.tokenWithScopes;
+import static no.sikt.nva.uac.testing.MockIssuer.tokenWithScopes;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.quarkus.test.junit.QuarkusTest;

@@ -1,20 +1,19 @@
-package no.sikt.nva.uac.http.security;
+package no.sikt.nva.uac.testing;
 
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.oidc.server.OidcWiremockTestResource;
 import io.smallrye.jwt.build.Jwt;
 
 /**
- * A mock OIDC issuer for every test in this module, served by WireMock, and the tokens it signs.
- * Registering the test resource here applies it to all Quarkus tests of the module.
+ * Tokens signed with the key of the mock OIDC issuer that Quarkus's {@code
+ * OidcWiremockTestResource} serves. A module that uses them registers that test resource once, on
+ * any class of its test source set.
  */
-@QuarkusTestResource(OidcWiremockTestResource.class)
 public final class MockIssuer {
 
   public static final String ISSUER = "https://server.example.com";
   public static final String ANOTHER_ISSUER = "https://another.example.com";
   private static final String SCOPE_CLAIM = "scope";
   private static final String SCOPE_SEPARATOR = " ";
+  private static final String SIGNING_KEY = "privateKey.jwk";
 
   private MockIssuer() {
     // NO-OP
@@ -34,6 +33,6 @@ public final class MockIssuer {
     return Jwt.issuer(issuer)
         .subject("nva-backend-client")
         .claim(SCOPE_CLAIM, String.join(SCOPE_SEPARATOR, scopes))
-        .sign();
+        .sign(SIGNING_KEY);
   }
 }

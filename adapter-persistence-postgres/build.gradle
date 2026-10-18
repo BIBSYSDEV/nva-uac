@@ -1,5 +1,6 @@
 plugins {
     id 'nva.uac.java-conventions'
+    id 'java-test-fixtures'
     id 'nu.studer.jooq'
 }
 
@@ -7,6 +8,7 @@ dependencies {
     api(project(':core'))
     api(libs.jooq)
     jooqGenerator(libs.jooq.meta.extensions)
+    testFixturesApi(libs.jooq)
     testImplementation(platform(nvaCatalog.testcontainers.bom))
     testImplementation(nvaCatalog.assertj.core)
     testImplementation(nvaCatalog.junit.jupiter.api)

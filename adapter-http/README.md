@@ -6,4 +6,6 @@ first, linted with Spectral by the build, and a test proves the registered route
 depends on `core` and on nothing else of ours.
 
 It carries no production wiring. The application modules produce the use cases this adapter
-injects; the tests here produce them over the in-memory fixtures of `core`.
+injects; the tests here produce them over the in-memory fixtures of `core`. Its configuration
+lives in `META-INF/microprofile-config.properties`, which Quarkus reads from a library jar,
+unlike `application.properties`, which it reads only from the application itself.

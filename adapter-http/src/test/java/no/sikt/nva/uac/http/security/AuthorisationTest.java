@@ -1,17 +1,24 @@
 package no.sikt.nva.uac.http.security;
 
 import static io.restassured.RestAssured.given;
-import static no.sikt.nva.uac.http.security.MockIssuer.tokenFromAnotherIssuer;
-import static no.sikt.nva.uac.http.security.MockIssuer.tokenWithScopes;
+import static no.sikt.nva.uac.testing.MockIssuer.tokenFromAnotherIssuer;
+import static no.sikt.nva.uac.testing.MockIssuer.tokenWithScopes;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.oidc.server.OidcWiremockTestResource;
 import java.util.Map;
 import no.sikt.nva.uac.http.problem.ForbiddenExceptionMapper;
 import no.sikt.nva.uac.http.problem.UnauthorizedExceptionMapper;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Also registers the mock OIDC issuer, which Quarkus then starts for every test in this module; the
+ * tokens come from {@code MockIssuer} in test-support.
+ */
 @QuarkusTest
+@QuarkusTestResource(OidcWiremockTestResource.class)
 class AuthorisationTest {
 
   private static final String ORGANISATION = "/organisations/{identifier}";
