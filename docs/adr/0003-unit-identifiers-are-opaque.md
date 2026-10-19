@@ -13,7 +13,8 @@ number, treated `x.0.0.0` as a root without a parent, and required every other u
 parent sharing its first number. The schema and the migration loader enforced the same.
 
 The data says otherwise. The top unit of the University of Oslo is `185.90.0.0`, with 43 parts,
-and `185.0.0.0` is an ordinary unit whose parent is `185.90.0.0`. Cristin ties a unit to its
+and `185.0.0.0` is an ordinary unit that names `185.90.0.0` as its parent (though `185.90.0.0`
+does not list it back; ADR 0004 is about that). Cristin ties a unit to its
 institution by data (`institution.cristin_institution_id`) and the institution to its top unit
 by data (`corresponding_unit`). The old NVA code validates only the form, four dot-separated
 numbers, and reads nothing else from it.

@@ -448,15 +448,16 @@ budget the description says why. Sizes are hand-written lines added.
 | 24  | `phase0/25-migration-loader`         | staging tables and the validating unit loader                                                                                      | 354  |
 | 25  | `phase0/26-migration-reconciliation` | the reconciliation report                                                                                                          | 257  |
 | 26  | `phase0/27-migration-runner`         | the rehearsal step: load, reconcile, report; its buildspec                                                                         | 208  |
+| 27  | `phase0/28-migration-consistency`    | both directions of the hierarchy staged and reconciled; ADR 0004                                                                   | 190  |
 
 Still to do in Phase 0, each waiting on something outside the repository:
 
-| Item                                                                                                 | Waits on                                                                                     |
-| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Deploy the data tier and the application stack to dev, and run the branch workflow once              | an AWS account, the deploy role and bucket as repository variables, and the VPC answer (D14) |
-| The extract of units from Cristin into the staging tables; the load and the reconciliation are built | read access to Cristin's database                                                            |
-| Least-privilege database user and the IAM credentials provider for the proxy                         | the first deployment                                                                         |
-| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                               | the deployment and the scope agreement with the identity team                                |
+| Item                                                                                                                                            | Waits on                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Deploy the data tier and the application stack to dev, and run the branch workflow once                                                         | an AWS account, the deploy role and bucket as repository variables, and the VPC answer (D14) |
+| The extract of units from Cristin into the staging tables, both directions of the hierarchy included; the load and the reconciliation are built | read access to Cristin's database                                                            |
+| Least-privilege database user and the IAM credentials provider for the proxy                                                                    | the first deployment                                                                         |
+| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                                                                          | the deployment and the scope agreement with the identity team                                |
 
 ### 13.3 Pattern for every later slice
 

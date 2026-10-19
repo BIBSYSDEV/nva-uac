@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 
 class LoadUnitsTest {
 
-  private static final String UIO = "185.0.0.0";
+  private static final String UIO = "185.90.0.0";
   private static final String FACULTY = "185.15.0.0";
 
   private static MigratedDatabase database;
@@ -39,6 +39,7 @@ class LoadUnitsTest {
     sql = DSL.using(database.dataSource(), SQLDialect.POSTGRES);
     StagedUnits.createIn(sql);
     sql.deleteFrom(StagedUnits.UNIT_NAME).execute();
+    sql.deleteFrom(StagedUnits.UNIT_PART).execute();
     sql.deleteFrom(StagedUnits.UNIT).execute();
     sql.deleteFrom(UNIT).execute();
   }
@@ -76,6 +77,7 @@ class LoadUnitsTest {
     stageName(UIO, "Universitetet i Oslo");
     stageUnit(FACULTY, UIO);
     stageName(FACULTY, "Det matematisk-naturvitenskapelige fakultet");
+    stagePart(UIO, FACULTY);
 
     LoadUnits.main(database.connectionArguments());
 
@@ -92,6 +94,12 @@ class LoadUnitsTest {
     sql.insertInto(
             StagedUnits.UNIT_NAME, StagedUnits.IDENTIFIER, StagedUnits.LANGUAGE, StagedUnits.TEXT)
         .values(identifier, "nb", text)
+        .execute();
+  }
+
+  private void stagePart(String parent, String child) {
+    sql.insertInto(StagedUnits.UNIT_PART, StagedUnits.LISTED_PARENT, StagedUnits.LISTED_CHILD)
+        .values(parent, child)
         .execute();
   }
 }
