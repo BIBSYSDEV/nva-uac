@@ -9,10 +9,13 @@ The rehearsed migration from Cristin (D2), in two halves.
    first, so a load that completes has only inserted what the domain accepts, and a
    reconciliation report proves the counts and the hierarchy afterwards.
 
-`src/main/resources/staging/units.sql` creates the staging tables; `UnitLoader` loads units and
-their names in one transaction into an empty target, parents before children by the `partOf`
-relation; nothing is read from the identifiers (ADR 0003). The tests run both against PostgreSQL in
-Docker.
+`src/main/resources/staging/units.sql` creates the staging tables: `unit` with each unit's own
+claim of a parent, `unit_name`, and `unit_part` with each parent's listing of its parts, which
+Cristin serves from a different field. `UnitLoader` loads units and their names in one
+transaction into an empty target, parents before children by the `partOf` relation; nothing is
+read from the identifiers (ADR 0003). `UnitReconciliation` compares the counts, finds what
+cannot be loaded, and fails the rehearsal when the two directions disagree (ADR 0004). The tests
+run against PostgreSQL in Docker.
 
 `./gradlew :migration:loadUnits`, with `MIGRATION_URL`, `MIGRATION_USER` and
 `MIGRATION_PASSWORD` set, runs one rehearsal step: load, reconcile, print the report, and fail

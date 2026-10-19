@@ -12,3 +12,9 @@ CREATE TABLE IF NOT EXISTS staging.unit_name (
     text text NOT NULL,
     PRIMARY KEY (identifier, language)
 );
+
+CREATE TABLE IF NOT EXISTS staging.unit_part (
+    parent_identifier text NOT NULL,
+    child_identifier text NOT NULL,
+    PRIMARY KEY (parent_identifier, child_identifier)
+);
