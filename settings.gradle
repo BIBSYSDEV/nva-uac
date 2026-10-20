@@ -38,3 +38,4 @@ rootProject.name = 'nva-uac'
 
 include 'core'
 include 'adapter-http'
+include 'adapter-persistence-postgres'

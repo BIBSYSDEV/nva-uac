@@ -1,5 +1,9 @@
 [versions]
 quarkus = "3.40.1"
+jooq = "3.21.9"
+flyway = "13.10.3"
+postgresql-driver = "42.7.14"
+jooq-gradle-plugin = "10.2.1"
 
 [libraries]
 quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
@@ -13,3 +17,10 @@ quarkus-oidc = { module = "io.quarkus:quarkus-oidc" }
 quarkus-test-oidc-server = { module = "io.quarkus:quarkus-test-oidc-server" }
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml" }
 rest-assured = { module = "io.rest-assured:rest-assured" }
+jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
+jooq-meta-extensions = { module = "org.jooq:jooq-meta-extensions", version.ref = "jooq" }
+jooq-gradle-plugin = { module = "nu.studer:gradle-jooq-plugin", version.ref = "jooq-gradle-plugin" }
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+postgresql-driver = { module = "org.postgresql:postgresql", version.ref = "postgresql-driver" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
