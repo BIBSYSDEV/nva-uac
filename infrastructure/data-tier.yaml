@@ -219,6 +219,13 @@ Resources:
         - "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${ProxyId}/*"
         - ProxyId: !Select [6, !Split [":", !GetAtt Proxy.DBProxyArn]]
 
+  CredentialsSecretArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/CredentialsSecretArn
+      Type: String
+      Value: !GetAtt Cluster.MasterUserSecret.SecretArn
+
   DatabaseNameParameter:
     Type: AWS::SSM::Parameter
     Properties:

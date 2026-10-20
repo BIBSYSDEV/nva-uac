@@ -22,6 +22,7 @@ jooq-meta-extensions = { module = "org.jooq:jooq-meta-extensions", version.ref =
 jooq-gradle-plugin = { module = "nu.studer:gradle-jooq-plugin", version.ref = "jooq-gradle-plugin" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+flyway-gradle-plugin = { module = "org.flywaydb:flyway-gradle-plugin", version.ref = "flyway" }
 postgresql-driver = { module = "org.postgresql:postgresql", version.ref = "postgresql-driver" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 smallrye-jwt-build = { module = "io.smallrye:smallrye-jwt-build" }

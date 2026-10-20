@@ -1,0 +1,20 @@
+name: Build
+permissions:
+  contents: write
+  checks: write
+  pull-requests: write
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  build:
+    uses: BIBSYSDEV/nva-github-workflows/.github/workflows/java.yml@v2
+    with:
+      java_version: "25"
+      openapi_files: "adapter-http/src/main/resources/openapi/*.yaml"
+    secrets:
+      codacy_token: ${{ secrets.CODACY_PROJECT_TOKEN }}
