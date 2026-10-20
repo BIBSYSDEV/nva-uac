@@ -24,3 +24,4 @@ flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 postgresql-driver = { module = "org.postgresql:postgresql", version.ref = "postgresql-driver" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+smallrye-jwt-build = { module = "io.smallrye:smallrye-jwt-build" }

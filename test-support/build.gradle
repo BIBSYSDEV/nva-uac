@@ -1,0 +1,13 @@
+plugins {
+    id 'nva.uac.java-conventions'
+}
+
+dependencies {
+    implementation(platform(libs.quarkus.bom))
+    implementation(libs.smallrye.jwt.build)
+    runtimeOnly(libs.quarkus.test.oidc.server)
+    testImplementation(nvaCatalog.assertj.core)
+    testImplementation(nvaCatalog.junit.jupiter.api)
+    testRuntimeOnly(nvaCatalog.junit.jupiter.engine)
+    testRuntimeOnly(nvaCatalog.junit.platform.launcher)
+}
