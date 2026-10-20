@@ -6,5 +6,7 @@ dependencies {
     api(project(':core'))
     implementation(libs.quarkus.rest)
     implementation(libs.quarkus.rest.jackson)
+    implementation(libs.quarkus.smallrye.openapi)
     testImplementation(testFixtures(project(':core')))
+    testImplementation(libs.jackson.dataformat.yaml)
 }

@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: nva-uac
+  version: 0.1.0
+  summary: Authority data for NVA
+  description: >-
+    Persons, employments, organisational units, projects, biobanks and the reference lists they
+    depend on, served to the NVA services. Identifiers are the Cristin identifiers.
+  contact:
+    name: NVA
+    url: https://github.com/BIBSYSDEV
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://api.nva.unit.no/uac
+    description: Production
+  - url: https://api.dev.nva.aws.unit.no/uac
+    description: Development
+tags:
+  - name: organisation
+    description: Institutions and the units within them.
+paths:
+  /organisations/{identifier}:
+    get:
+      tags:
+        - organisation
+      summary: One organisational unit
+      description: >-
+        Returns the unit with the given dotted Cristin identifier, such as `185.15.2.10`, with
+        its name in every language it is known in and the identifier of its parent unit.
+      operationId: getOrganisation
+      parameters:
+        - $ref: "#/components/parameters/unitIdentifier"
+      responses:
+        "200":
+          description: The unit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unit"
+        "400":
+          $ref: "#/components/responses/MalformedIdentifier"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    unitIdentifier:
+      name: identifier
+      in: path
+      required: true
+      description: >-
+        Four dot-separated numbers without signs, spaces or leading zeros. The segments carry
+        no meaning; the hierarchy is the partOf relation.
+      schema:
+        $ref: "#/components/schemas/UnitIdentifier"
+  schemas:
+    UnitIdentifier:
+      type: string
+      pattern: "^(0|[1-9][0-9]{0,8})(\\.(0|[1-9][0-9]{0,8})){3}$"
+      examples:
+        - "185.15.2.10"
+    LanguageTag:
+      type: string
+      description: A BCP 47 language tag, lower-cased.
+      pattern: "^[a-z]{2,3}(-[a-z0-9]{2,8})*$"
+    Unit:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: "#/components/schemas/UnitIdentifier"
+        name:
+          type: object
+          description: The name by language tag.
+          propertyNames:
+            $ref: "#/components/schemas/LanguageTag"
+          additionalProperties:
+            type: string
+        acronym:
+          type: string
+          description: The short form of the name, absent when the unit has none.
+        partOf:
+          $ref: "#/components/schemas/UnitIdentifier"
+          description: The parent unit, absent for a root.
+    Problem:
+      type: object
+      description: A problem details document as defined by RFC 9457.
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+  responses:
+    MalformedIdentifier:
+      description: The identifier is not in the required form.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: No resource matches the request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"

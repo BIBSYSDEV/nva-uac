@@ -8,4 +8,6 @@ quarkus-jacoco = { module = "io.quarkus:quarkus-jacoco" }
 quarkus-junit5 = { module = "io.quarkus:quarkus-junit5" }
 quarkus-rest = { module = "io.quarkus:quarkus-rest" }
 quarkus-rest-jackson = { module = "io.quarkus:quarkus-rest-jackson" }
+quarkus-smallrye-openapi = { module = "io.quarkus:quarkus-smallrye-openapi" }
+jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml" }
 rest-assured = { module = "io.rest-assured:rest-assured" }
