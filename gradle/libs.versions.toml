@@ -25,3 +25,7 @@ flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", versio
 postgresql-driver = { module = "org.postgresql:postgresql", version.ref = "postgresql-driver" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 smallrye-jwt-build = { module = "io.smallrye:smallrye-jwt-build" }
+quarkus-agroal = { module = "io.quarkus:quarkus-agroal" }
+quarkus-jdbc-postgresql = { module = "io.quarkus:quarkus-jdbc-postgresql" }
+quarkus-flyway = { module = "io.quarkus:quarkus-flyway" }
+quarkus-smallrye-health = { module = "io.quarkus:quarkus-smallrye-health" }
