@@ -13,3 +13,8 @@ The rehearsed migration from Cristin (D2), in two halves.
 their names in one transaction into an empty target, parents before children by the `partOf`
 relation; nothing is read from the identifiers (ADR 0003). The tests run both against PostgreSQL in
 Docker.
+
+`./gradlew :migration:loadUnits`, with `MIGRATION_URL`, `MIGRATION_USER` and
+`MIGRATION_PASSWORD` set, runs one rehearsal step: load, reconcile, print the report, and fail
+unless it is clean. `buildspec.rehearse.yml` runs it from CodeBuild inside the VPC and keeps the
+report as an artefact, so every rehearsal leaves a record.

@@ -6,9 +6,23 @@ dependencies {
     api(libs.jooq)
     implementation(project(':adapter-persistence-postgres'))
     implementation(project(':core'))
+    runtimeOnly(libs.postgresql.driver)
     testImplementation(testFixtures(project(':adapter-persistence-postgres')))
     testImplementation(nvaCatalog.assertj.core)
     testImplementation(nvaCatalog.junit.jupiter.api)
     testRuntimeOnly(nvaCatalog.junit.jupiter.engine)
     testRuntimeOnly(nvaCatalog.junit.platform.launcher)
+}
+
+// The rehearsal step for units, run by the pipeline inside the data tier's VPC:
+// MIGRATION_URL, MIGRATION_USER and MIGRATION_PASSWORD name the target database
+tasks.register('loadUnits', JavaExec) {
+    group = 'migration'
+    description = 'Loads staged units into the real tables, reconciles, and fails unless clean'
+    mainClass = 'no.sikt.nva.uac.migration.organisation.LoadUnits'
+    classpath = sourceSets.main.runtimeClasspath
+    args(
+            providers.environmentVariable('MIGRATION_URL').getOrElse(''),
+            providers.environmentVariable('MIGRATION_USER').getOrElse(''),
+            providers.environmentVariable('MIGRATION_PASSWORD').getOrElse(''))
 }

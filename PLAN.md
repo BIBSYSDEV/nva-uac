@@ -445,15 +445,18 @@ budget the description says why. Sizes are hand-written lines added.
 | 21  | `phase0/22-pipeline`                 | buildspecs, Flyway migration step in the VPC, GitHub workflows                                                                     | 213  |
 | 22  | `phase0/23-fitness-harness`          | the measurement script and report                                                                                                  | 191  |
 | 23  | `phase0/24-record-the-stack`         | this table and the README build section                                                                                            | docs |
+| 24  | `phase0/25-migration-loader`         | staging tables and the validating unit loader                                                                                      | 354  |
+| 25  | `phase0/26-migration-reconciliation` | the reconciliation report                                                                                                          | 257  |
+| 26  | `phase0/27-migration-runner`         | the rehearsal step: load, reconcile, report; its buildspec                                                                         | 208  |
 
 Still to do in Phase 0, each waiting on something outside the repository:
 
-| Item                                                                                    | Waits on                                                                                     |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Deploy the data tier and the application stack to dev, and run the branch workflow once | an AWS account, the deploy role and bucket as repository variables, and the VPC answer (D14) |
-| Migration of units from Cristin, with its reconciliation test                           | read access to Cristin's database                                                            |
-| Least-privilege database user and the IAM credentials provider for the proxy            | the first deployment                                                                         |
-| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                  | the deployment and the scope agreement with the identity team                                |
+| Item                                                                                                 | Waits on                                                                                     |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Deploy the data tier and the application stack to dev, and run the branch workflow once              | an AWS account, the deploy role and bucket as repository variables, and the VPC answer (D14) |
+| The extract of units from Cristin into the staging tables; the load and the reconciliation are built | read access to Cristin's database                                                            |
+| Least-privilege database user and the IAM credentials provider for the proxy                         | the first deployment                                                                         |
+| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                               | the deployment and the scope agreement with the identity team                                |
 
 ### 13.3 Pattern for every later slice
 
