@@ -1,0 +1,10 @@
+plugins {
+    id 'nva.uac.quarkus-library-conventions'
+}
+
+dependencies {
+    api(project(':core'))
+    implementation(libs.quarkus.rest)
+    implementation(libs.quarkus.rest.jackson)
+    testImplementation(testFixtures(project(':core')))
+}

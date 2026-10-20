@@ -1,0 +1,11 @@
+[versions]
+quarkus = "3.40.1"
+
+[libraries]
+quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
+quarkus-gradle-plugin = { module = "io.quarkus:gradle-application-plugin", version.ref = "quarkus" }
+quarkus-jacoco = { module = "io.quarkus:quarkus-jacoco" }
+quarkus-junit5 = { module = "io.quarkus:quarkus-junit5" }
+quarkus-rest = { module = "io.quarkus:quarkus-rest" }
+quarkus-rest-jackson = { module = "io.quarkus:quarkus-rest-jackson" }
+rest-assured = { module = "io.rest-assured:rest-assured" }

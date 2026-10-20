@@ -1,0 +1,43 @@
+plugins {
+    id 'nva.uac.java-conventions'
+    id 'io.quarkus'
+}
+
+dependencies {
+    implementation(enforcedPlatform(libs.quarkus.bom))
+    testImplementation(libs.quarkus.junit5)
+    testImplementation(libs.rest.assured)
+    testImplementation(nvaCatalog.assertj.core)
+    testImplementation(nvaCatalog.junit.jupiter.api)
+    testRuntimeOnly(libs.quarkus.jacoco)
+    testRuntimeOnly(nvaCatalog.junit.platform.launcher)
+}
+
+tasks.named('test', Test) {
+    jacoco {
+        excludeClassLoaders = ['*QuarkusClassLoader']
+    }
+}
+
+// Quarkus extensions are consumed by the Quarkus build, not by javac, so the usage-based
+// dependency advice (unused, transitive, wrong configuration) misreads them. For this module
+// that advice is reported but does not fail the build; the structural checks still fail it.
+rootProject.dependencyAnalysis {
+    issues {
+        project(project.path) {
+            onAny { severity('warn') }
+            onUnusedAnnotationProcessors { severity('fail') }
+            onRedundantPlugins { severity('fail') }
+            onModuleStructure { severity('fail') }
+        }
+    }
+}
+
+// The dependency-analysis plugin scans every source directory, including the one Quarkus
+// generates into; Gradle must see that ordering explicitly
+def quarkusCodeGeneration = tasks.matching {
+    it.name.startsWith('quarkusGenerateCode')
+}
+tasks.matching { it.name.startsWith('explodeByteCodeSource') }.configureEach {
+    mustRunAfter(quarkusCodeGeneration)
+}

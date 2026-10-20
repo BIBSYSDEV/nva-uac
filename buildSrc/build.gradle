@@ -9,4 +9,5 @@ repositories {
 
 dependencies {
     implementation 'com.github.bibsysdev:nva-gradle-plugins:1.0.12'
+    implementation(libs.quarkus.gradle.plugin)
 }
