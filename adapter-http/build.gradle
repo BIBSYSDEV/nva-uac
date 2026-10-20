@@ -7,6 +7,8 @@ dependencies {
     implementation(libs.quarkus.rest)
     implementation(libs.quarkus.rest.jackson)
     implementation(libs.quarkus.smallrye.openapi)
+    implementation(libs.quarkus.oidc)
     testImplementation(testFixtures(project(':core')))
     testImplementation(libs.jackson.dataformat.yaml)
+    testImplementation(libs.quarkus.test.oidc.server)
 }
