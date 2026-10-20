@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  nva-uac data tier: Aurora PostgreSQL Serverless v2 with a writer and a reader, behind RDS Proxy,
+  encrypted with a dedicated KMS key. Deployed once per account; the application stacks read its
+  outputs from SSM. The VPC and subnets are inputs, so a shared network or a dedicated one both
+  fit.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC the database, the proxy and the application run in.
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnets in at least two availability zones.
+  EngineVersion:
+    Type: String
+    Default: "17.5"
+    Description: Aurora PostgreSQL engine version; the same major version as the local tests use.
+  MinCapacity:
+    Type: Number
+    Default: 0.5
+    Description: Minimum Aurora capacity units per instance.
+  MaxCapacity:
+    Type: Number
+    Default: 4
+    Description: Maximum Aurora capacity units per instance.
+  DatabaseName:
+    Type: String
+    Default: nvauac
+    AllowedPattern: "^[a-z][a-z0-9_]{0,62}$"
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, sandbox, prod]
+    Description: Decides deletion protection and backup retention.
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+
+Resources:
+  DatabaseKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encrypts nva-uac database storage and the database credentials secret.
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+
+  DatabaseKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/nva-uac/${Environment}/database"
+      TargetKeyId: !Ref DatabaseKey
+
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: nva-uac application; may reach the proxy and the internet for the issuer.
+      VpcId: !Ref VpcId
+
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: nva-uac RDS Proxy; reachable from the application only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ApplicationSecurityGroup
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: nva-uac Aurora cluster; reachable from the proxy only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ProxySecurityGroup
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: nva-uac private subnets
+      SubnetIds: !Ref PrivateSubnetIds
+
+  Cluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: aurora-postgresql
+      EngineVersion: !Ref EngineVersion
+      DatabaseName: !Ref DatabaseName
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref MinCapacity
+        MaxCapacity: !Ref MaxCapacity
+      ManageMasterUserPassword: true
+      MasterUsername: nvauac_admin
+      MasterUserSecret:
+        KmsKeyId: !Ref DatabaseKey
+      StorageEncrypted: true
+      KmsKeyId: !Ref DatabaseKey
+      BackupRetentionPeriod: !If [IsProduction, 35, 7]
+      DeletionProtection: !If [IsProduction, true, false]
+      CopyTagsToSnapshot: true
+      EnableCloudwatchLogsExports:
+        - postgresql
+
+  Writer:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref Cluster
+      Engine: aurora-postgresql
+      DBInstanceClass: db.serverless
+      PubliclyAccessible: false
+      PromotionTier: 0
+
+  Reader:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref Cluster
+      Engine: aurora-postgresql
+      DBInstanceClass: db.serverless
+      PubliclyAccessible: false
+      PromotionTier: 1
+
+  ProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadDatabaseCredentials
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !GetAtt Cluster.MasterUserSecret.SecretArn
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: !GetAtt DatabaseKey.Arn
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
+
+  Proxy:
+    Type: AWS::RDS::DBProxy
+    Properties:
+      DBProxyName: !Sub "nva-uac-${Environment}"
+      EngineFamily: POSTGRESQL
+      RoleArn: !GetAtt ProxyRole.Arn
+      Auth:
+        - AuthScheme: SECRETS
+          IAMAuth: REQUIRED
+          SecretArn: !GetAtt Cluster.MasterUserSecret.SecretArn
+      RequireTLS: true
+      VpcSubnetIds: !Ref PrivateSubnetIds
+      VpcSecurityGroupIds:
+        - !Ref ProxySecurityGroup
+
+  ProxyTargets:
+    Type: AWS::RDS::DBProxyTargetGroup
+    DependsOn: [Writer, Reader]
+    Properties:
+      DBProxyName: !Ref Proxy
+      TargetGroupName: default
+      DBClusterIdentifiers:
+        - !Ref Cluster
+
+  ProxyReadOnlyEndpoint:
+    Type: AWS::RDS::DBProxyEndpoint
+    Properties:
+      DBProxyName: !Ref Proxy
+      DBProxyEndpointName: !Sub "nva-uac-${Environment}-read"
+      TargetRole: READ_ONLY
+      VpcSubnetIds: !Ref PrivateSubnetIds
+      VpcSecurityGroupIds:
+        - !Ref ProxySecurityGroup
+
+  ProxyEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/ProxyEndpoint
+      Type: String
+      Value: !GetAtt Proxy.Endpoint
+
+  ProxyReadOnlyEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/ProxyReadOnlyEndpoint
+      Type: String
+      Value: !GetAtt ProxyReadOnlyEndpoint.Endpoint
+
+  ProxyConnectResourceParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/ProxyConnectResource
+      Type: String
+      Value: !Sub
+        - "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${ProxyId}/*"
+        - ProxyId: !Select [6, !Split [":", !GetAtt Proxy.DBProxyArn]]
+
+  DatabaseNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/Name
+      Type: String
+      Value: !Ref DatabaseName
+
+  ApplicationSecurityGroupParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Network/ApplicationSecurityGroupId
+      Type: String
+      Value: !Ref ApplicationSecurityGroup
+
+  PrivateSubnetIdsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Network/PrivateSubnetIds
+      Type: StringList
+      Value: !Join [",", !Ref PrivateSubnetIds]
+
+Outputs:
+  ProxyEndpoint:
+    Value: !GetAtt Proxy.Endpoint
+  ClusterIdentifier:
+    Value: !Ref Cluster
+  CredentialsSecretArn:
+    Description: The master credentials, read by the proxy and by the migration step; never by the application.
+    Value: !GetAtt Cluster.MasterUserSecret.SecretArn
