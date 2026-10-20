@@ -1,3 +1,23 @@
 plugins {
     id 'nva.uac.root-conventions'
 }
+
+// The infrastructure templates are not a Gradle project, since the shared root conventions
+// aggregate coverage over every subproject; they are linted from here instead
+def templateLints = [
+    'data-tier.yaml',
+    'template.yaml'
+].collect { template ->
+    tasks.register("lint${template.replace('.yaml', '').split('-').collect { it.capitalize() }.join()}", Exec) {
+        group = 'verification'
+        description = "Lints infrastructure/${template} with sam validate --lint"
+        inputs.file("infrastructure/${template}")
+        commandLine 'sam', 'validate', '--lint', '--template-file', "infrastructure/${template}"
+    }
+}
+
+tasks.register('lintInfrastructure') {
+    group = 'verification'
+    description = 'Lints every CloudFormation and SAM template; needs the SAM CLI on the path'
+    dependsOn templateLints
+}
