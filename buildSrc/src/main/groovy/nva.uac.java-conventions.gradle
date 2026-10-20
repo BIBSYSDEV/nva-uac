@@ -13,5 +13,6 @@ nva {
     }
     pmd {
         ignoreFailures = false
+        rulesetFile = rootProject.file('config/pmd/ruleset.xml')
     }
 }
