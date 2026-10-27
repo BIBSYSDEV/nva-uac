@@ -18,6 +18,8 @@ cannot be loaded, and fails the rehearsal when the two directions disagree (ADR 
 run against PostgreSQL in Docker.
 
 `./gradlew :migration:loadUnits`, with `MIGRATION_URL`, `MIGRATION_USER` and
-`MIGRATION_PASSWORD` set, runs one rehearsal step: load, reconcile, print the report, and fail
-unless it is clean. `buildspec.rehearse.yml` runs it from CodeBuild inside the VPC and keeps the
+`MIGRATION_PASSWORD` set in the environment, runs one rehearsal step: print the reconciliation of
+what is staged, load, reconcile again, print that report, and fail unless it is clean. The report
+before the load is printed first, so a load that fails still leaves a record naming what stopped
+it. `buildspec.rehearse.yml` runs it from CodeBuild inside the VPC and keeps the
 report as an artefact, so every rehearsal leaves a record.
