@@ -20,6 +20,8 @@ public final class LoadUnits {
   public static final String USER_VARIABLE = "MIGRATION_USER";
   public static final String PASSWORD_VARIABLE = "MIGRATION_PASSWORD";
   public static final String MISSING_VARIABLE = "A connection variable is not set";
+  public static final String NO_ARGUMENTS =
+      "The step takes no arguments; the connection is read from the environment";
   public static final String NOT_CLEAN = "The rehearsal is not clean; see the report above";
 
   private LoadUnits() {
@@ -27,12 +29,17 @@ public final class LoadUnits {
   }
 
   /**
-   * Runs the step against the database the process environment names.
+   * Runs the step against the database the process environment names. Arguments are refused, so
+   * that no connection detail can be passed on a command line.
    *
-   * @throws IllegalArgumentException if a connection variable is unset or blank
+   * @throws IllegalArgumentException if any argument is given, or a connection variable is unset or
+   *     blank
    * @throws IllegalStateException if the load fails or the reconciliation after it is not clean
    */
   public static void main(String[] arguments) {
+    if (arguments.length > 0) {
+      throw new IllegalArgumentException(NO_ARGUMENTS);
+    }
     connectAndRun(System.getenv(), System.out);
   }
 
