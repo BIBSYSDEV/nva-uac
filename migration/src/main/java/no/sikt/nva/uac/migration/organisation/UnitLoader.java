@@ -38,6 +38,7 @@ public final class UnitLoader {
       "The unit tables must be empty before a load; drop and migrate the schema first";
   public static final String PARENT_NOT_STAGED = "A staged unit names a parent that is not staged";
   public static final String PARENTS_FORM_A_CYCLE = "The staged parents form a cycle";
+  public static final String UNIT_WITHOUT_NAME = "A staged unit has no name in any language";
 
   private final DSLContext sql;
 
@@ -49,8 +50,8 @@ public final class UnitLoader {
    * Loads everything staged.
    *
    * @return the number of units loaded
-   * @throws IllegalStateException if the target already holds units, a staged parent is not staged
-   *     itself, or the staged parents form a cycle
+   * @throws IllegalStateException if the target already holds units, a staged unit has no name, a
+   *     staged parent is not staged itself, or the staged parents form a cycle
    * @throws no.sikt.nva.uac.shared.InvalidIdentifierException if a staged identifier is malformed
    * @throws no.sikt.nva.uac.shared.InvalidValueException if a staged unit or name breaks an
    *     invariant
@@ -75,7 +76,7 @@ public final class UnitLoader {
         sql
             .select(StagedUnits.IDENTIFIER, StagedUnits.PARENT_IDENTIFIER, StagedUnits.ACRONYM)
             .from(StagedUnits.UNIT)
-            .fetch(row -> toUnit(row, names.getOrDefault(row.value1(), Labels.none())))
+            .fetch(row -> toUnit(row, names))
             .stream()
             .collect(Collectors.toMap(Unit::identifier, Function.identity()));
     return staged.values().stream()
@@ -99,10 +100,12 @@ public final class UnitLoader {
         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Labels.from(entry.getValue())));
   }
 
-  private static Unit toUnit(Record3<String, String, String> row, Labels name) {
+  private static Unit toUnit(Record3<String, String, String> row, Map<String, Labels> names) {
+    var identifier = UnitIdentifier.parse(row.value1());
     return new Unit(
-        UnitIdentifier.parse(row.value1()),
-        name,
+        identifier,
+        Optional.ofNullable(names.get(row.value1()))
+            .orElseThrow(() -> failure(UNIT_WITHOUT_NAME, identifier)),
         Optional.ofNullable(row.value3()),
         Optional.ofNullable(row.value2()).map(UnitIdentifier::parse));
   }

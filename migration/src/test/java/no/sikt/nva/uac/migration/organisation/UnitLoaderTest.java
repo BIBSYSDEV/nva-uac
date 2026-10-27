@@ -64,21 +64,30 @@ class UnitLoaderTest {
   @Test
   void shouldRejectMalformedStagedIdentifier() {
     stageUnit("185.015.0.0", null, null);
-    stageUnit(TOP_UNIT_OF_UIO, null, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, null);
 
     assertThatThrownBy(loader::load).isInstanceOf(InvalidIdentifierException.class);
   }
 
   @Test
+  void shouldRejectStagedUnitWithoutAName() {
+    stageUnit(FACULTY, null, null);
+
+    assertThatThrownBy(loader::load)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage(UnitLoader.UNIT_WITHOUT_NAME + ": " + FACULTY);
+  }
+
+  @Test
   void shouldRejectStagedUnitThatIsItsOwnParent() {
-    stageUnit(FACULTY, FACULTY, null);
+    stageNamedUnit(FACULTY, FACULTY, null);
 
     assertThatThrownBy(loader::load).isInstanceOf(InvalidValueException.class);
   }
 
   @Test
   void shouldRejectStagedParentThatIsNotStagedItself() {
-    stageUnit(FACULTY, NOT_STAGED, null);
+    stageNamedUnit(FACULTY, NOT_STAGED, null);
 
     assertThatThrownBy(loader::load)
         .isInstanceOf(IllegalStateException.class)
@@ -87,8 +96,8 @@ class UnitLoaderTest {
 
   @Test
   void shouldRejectACycleOfParents() {
-    stageUnit(A_UNIT_WITHIN_UIO, FACULTY, null);
-    stageUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
+    stageNamedUnit(A_UNIT_WITHIN_UIO, FACULTY, null);
+    stageNamedUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
 
     assertThatThrownBy(loader::load)
         .isInstanceOf(IllegalStateException.class)
@@ -103,9 +112,9 @@ class UnitLoaderTest {
 
   @Test
   void shouldRejectACycleThatTheStartingUnitIsNotPartOf() {
-    stageUnit(TOP_UNIT_OF_UIO, A_UNIT_WITHIN_UIO, null);
-    stageUnit(A_UNIT_WITHIN_UIO, FACULTY, null);
-    stageUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, A_UNIT_WITHIN_UIO, null);
+    stageNamedUnit(A_UNIT_WITHIN_UIO, FACULTY, null);
+    stageNamedUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
 
     assertThatThrownBy(loader::load)
         .isInstanceOf(IllegalStateException.class)
@@ -114,8 +123,8 @@ class UnitLoaderTest {
 
   @Test
   void shouldWriteNothingWhenAnyStagedRowIsInvalid() {
-    stageUnit(TOP_UNIT_OF_UIO, null, null);
-    stageUnit(FACULTY, NOT_STAGED, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, null);
+    stageNamedUnit(FACULTY, NOT_STAGED, null);
 
     var unitsAfterFailedLoad = unitCountAfterFailedLoad();
 
@@ -124,7 +133,7 @@ class UnitLoaderTest {
 
   @Test
   void shouldFailWhenAStagedNameDoesNotFitItsColumn() {
-    stageUnit(TOP_UNIT_OF_UIO, null, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, null);
     stageName(TOP_UNIT_OF_UIO, TAG_LONGER_THAN_THE_COLUMN, "Universitetet i Oslo");
 
     assertThatThrownBy(loader::load).isInstanceOf(DataAccessException.class);
@@ -132,8 +141,8 @@ class UnitLoaderTest {
 
   @Test
   void shouldWriteNothingWhenAnInsertFailsAfterOthersSucceeded() {
-    stageUnit(TOP_UNIT_OF_UIO, null, null);
-    stageUnit(FACULTY, TOP_UNIT_OF_UIO, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, null);
+    stageNamedUnit(FACULTY, TOP_UNIT_OF_UIO, null);
     stageName(FACULTY, TAG_LONGER_THAN_THE_COLUMN, "Et fakultet");
 
     var unitsAfterFailedLoad = unitCountAfterFailedLoad();
@@ -143,9 +152,9 @@ class UnitLoaderTest {
 
   @Test
   void shouldLoadParentsBeforeChildrenWhateverTheOrderOrTheIdentifiers() {
-    stageUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
-    stageUnit(A_UNIT_WITHIN_UIO, TOP_UNIT_OF_UIO, null);
-    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
+    stageNamedUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
+    stageNamedUnit(A_UNIT_WITHIN_UIO, TOP_UNIT_OF_UIO, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
 
     loader.load();
 
@@ -158,8 +167,8 @@ class UnitLoaderTest {
 
   @Test
   void shouldLoadTheAcronymWhereThereIsOne() {
-    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
-    stageUnit(FACULTY, TOP_UNIT_OF_UIO, null);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
+    stageNamedUnit(FACULTY, TOP_UNIT_OF_UIO, null);
 
     loader.load();
 
@@ -170,7 +179,7 @@ class UnitLoaderTest {
 
   @Test
   void shouldLoadEveryStagedNameInItsLanguage() {
-    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
+    stageNamedUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
     stageName(TOP_UNIT_OF_UIO, NORWEGIAN_BOKMAAL, "Universitetet i Oslo");
     stageName(TOP_UNIT_OF_UIO, ENGLISH, "University of Oslo");
 
@@ -207,6 +216,11 @@ class UnitLoaderTest {
         .from(UNIT_LABEL)
         .where(UNIT_LABEL.UNIT_IDENTIFIER.eq(identifier))
         .fetchMap(UNIT_LABEL.LANGUAGE, UNIT_LABEL.TEXT);
+  }
+
+  private void stageNamedUnit(String identifier, String parent, String acronym) {
+    stageUnit(identifier, parent, acronym);
+    stageName(identifier, NORWEGIAN_BOKMAAL, "Enhet " + identifier);
   }
 
   private void stageUnit(String identifier, String parent, String acronym) {
