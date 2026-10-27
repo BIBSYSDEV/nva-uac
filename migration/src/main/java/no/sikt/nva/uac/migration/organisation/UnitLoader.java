@@ -4,6 +4,7 @@ import static no.sikt.nva.uac.persistence.jooq.Tables.UNIT;
 import static no.sikt.nva.uac.persistence.jooq.Tables.UNIT_LABEL;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,7 +28,9 @@ import org.jooq.impl.DSL;
  *
  * <p>Parents are inserted before their children, in the order the {@code partOf} relation gives and
  * not in any order read from the identifiers (ADR 0003); a parent that is not staged, or a cycle of
- * parents, fails the load before anything is written.
+ * parents, fails the load before anything is written, and the message names the identifier at which
+ * the walk up the parents failed. Identifiers are safe to name because they have passed the form
+ * check by then.
  */
 public final class UnitLoader {
 
@@ -76,7 +79,7 @@ public final class UnitLoader {
             .stream()
             .collect(Collectors.toMap(Unit::identifier, Function.identity()));
     return staged.values().stream()
-        .map(unit -> new Placed(depth(unit, staged, 0), unit))
+        .map(unit -> new Placed(depth(unit, staged), unit))
         .sorted(Comparator.comparingInt(Placed::depth))
         .map(Placed::unit)
         .toList();
@@ -104,22 +107,26 @@ public final class UnitLoader {
         Optional.ofNullable(row.value2()).map(UnitIdentifier::parse));
   }
 
-  private static int depth(Unit unit, Map<UnitIdentifier, Unit> staged, int ancestors) {
-    requireNoCycle(ancestors, staged.size());
-    return unit.partOf()
-        .map(parent -> 1 + depth(stagedParent(parent, staged), staged, ancestors + 1))
-        .orElse(0);
-  }
-
-  private static void requireNoCycle(int ancestors, int stagedUnits) {
-    if (ancestors > stagedUnits) {
-      throw new IllegalStateException(PARENTS_FORM_A_CYCLE);
+  private static int depth(Unit unit, Map<UnitIdentifier, Unit> staged) {
+    var ancestors = new HashSet<UnitIdentifier>();
+    var current = unit;
+    while (current.partOf().isPresent()) {
+      var parent = current.partOf().orElseThrow();
+      if (!ancestors.add(parent)) {
+        throw failure(PARENTS_FORM_A_CYCLE, parent);
+      }
+      current = stagedParent(parent, staged);
     }
+    return ancestors.size();
   }
 
   private static Unit stagedParent(UnitIdentifier parent, Map<UnitIdentifier, Unit> staged) {
     return Optional.ofNullable(staged.get(parent))
-        .orElseThrow(() -> new IllegalStateException(PARENT_NOT_STAGED));
+        .orElseThrow(() -> failure(PARENT_NOT_STAGED, parent));
+  }
+
+  private static IllegalStateException failure(String reason, UnitIdentifier identifier) {
+    return new IllegalStateException("%s: %s".formatted(reason, identifier));
   }
 
   private static void insert(DSLContext sql, Unit unit) {
