@@ -15,7 +15,7 @@ import no.sikt.nva.uac.shared.LanguageTag;
  * @param id the dotted identifier
  * @param name the name by language tag, in tag order
  * @param acronym the acronym, absent when the unit has none
- * @param partOf the dotted identifier of the parent, absent for an institution
+ * @param partOf the dotted identifier of the parent, absent for a root
  */
 public record UnitRepresentation(
     String id, SortedMap<String, String> name, Optional<String> acronym, Optional<String> partOf) {
