@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   nva-uac data tier: Aurora PostgreSQL Serverless v2 with a writer and a reader, behind RDS Proxy,
-  encrypted with a dedicated KMS key. Deployed once per account; the application stacks read its
+  encrypted with the AWS-managed keys. Deployed once per account; the application stacks read its
   outputs from SSM. The VPC and subnets are inputs, so a shared network or a dedicated one both
   fit.
 
@@ -28,37 +28,26 @@ Parameters:
     Type: String
     Default: nvauac
     AllowedPattern: "^[a-z][a-z0-9_]{0,62}$"
+    Description: Fixed at the first deployment; a change replaces the cluster.
+  MasterUsername:
+    Type: String
+    Default: nvauac_admin
+    AllowedPattern: "^[a-z][a-z0-9_]{0,62}$"
+    Description: Fixed at the first deployment; a change replaces the cluster.
   Environment:
     Type: String
     Default: dev
-    AllowedValues: [dev, test, sandbox, prod]
-    Description: Decides deletion protection and backup retention.
+    AllowedValues: [dev, test, e2e, sandbox, prod]
+    Description: Names the cluster and the proxy; decides deletion protection and backup retention.
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    Description: How long the PostgreSQL log is kept in CloudWatch Logs.
 
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
 
 Resources:
-  DatabaseKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: Encrypts nva-uac database storage and the database credentials secret.
-      EnableKeyRotation: true
-      KeyPolicy:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: AccountAdministration
-            Effect: Allow
-            Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
-            Action: "kms:*"
-            Resource: "*"
-
-  DatabaseKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: !Sub "alias/nva-uac/${Environment}/database"
-      TargetKeyId: !Ref DatabaseKey
-
   ApplicationSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -93,11 +82,19 @@ Resources:
       DBSubnetGroupDescription: nva-uac private subnets
       SubnetIds: !Ref PrivateSubnetIds
 
+  ClusterLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/rds/cluster/nva-uac-${Environment}/postgresql"
+      RetentionInDays: !Ref LogRetentionDays
+
   Cluster:
     Type: AWS::RDS::DBCluster
+    DependsOn: ClusterLogGroup
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
     Properties:
+      DBClusterIdentifier: !Sub "nva-uac-${Environment}"
       Engine: aurora-postgresql
       EngineVersion: !Ref EngineVersion
       DatabaseName: !Ref DatabaseName
@@ -108,11 +105,8 @@ Resources:
         MinCapacity: !Ref MinCapacity
         MaxCapacity: !Ref MaxCapacity
       ManageMasterUserPassword: true
-      MasterUsername: nvauac_admin
-      MasterUserSecret:
-        KmsKeyId: !Ref DatabaseKey
+      MasterUsername: !Ref MasterUsername
       StorageEncrypted: true
-      KmsKeyId: !Ref DatabaseKey
       BackupRetentionPeriod: !If [IsProduction, 35, 7]
       DeletionProtection: !If [IsProduction, true, false]
       CopyTagsToSnapshot: true
@@ -155,12 +149,6 @@ Resources:
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource: !GetAtt Cluster.MasterUserSecret.SecretArn
-              - Effect: Allow
-                Action: kms:Decrypt
-                Resource: !GetAtt DatabaseKey.Arn
-                Condition:
-                  StringEquals:
-                    kms:ViaService: !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
 
   Proxy:
     Type: AWS::RDS::DBProxy
@@ -219,6 +207,33 @@ Resources:
         - "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${ProxyId}/*"
         - ProxyId: !Select [6, !Split [":", !GetAtt Proxy.DBProxyArn]]
 
+  MigrationConnectPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: >
+        Lets the migration CodeBuild project connect through the proxy with an IAM authentication
+        token. Attached to that project's role where the pipeline is defined.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: rds-db:connect
+            Resource: !GetAtt ProxyConnectResourceParameter.Value
+
+  MigrationConnectPolicyArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/MigrationConnectPolicyArn
+      Type: String
+      Value: !Ref MigrationConnectPolicy
+
+  MasterUsernameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Database/MasterUsername
+      Type: String
+      Value: !Ref MasterUsername
+
   CredentialsSecretArnParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -232,6 +247,13 @@ Resources:
       Name: /NVA/UAC/Database/Name
       Type: String
       Value: !Ref DatabaseName
+
+  VpcIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /NVA/UAC/Network/VpcId
+      Type: String
+      Value: !Ref VpcId
 
   ApplicationSecurityGroupParameter:
     Type: AWS::SSM::Parameter
@@ -253,5 +275,8 @@ Outputs:
   ClusterIdentifier:
     Value: !Ref Cluster
   CredentialsSecretArn:
-    Description: The master credentials, read by the proxy and by the migration step; never by the application.
+    Description: The master credentials, read by the proxy only; callers authenticate with IAM tokens.
     Value: !GetAtt Cluster.MasterUserSecret.SecretArn
+  MigrationConnectPolicyArn:
+    Description: Attach to the migration CodeBuild project's role so it can connect through the proxy.
+    Value: !Ref MigrationConnectPolicy
