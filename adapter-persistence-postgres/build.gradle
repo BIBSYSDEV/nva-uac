@@ -83,8 +83,8 @@ dependencyAnalysis {
     }
 }
 
-// The pipeline's migration step: ./gradlew :adapter-persistence-postgres:flywayMigrate with
-// flyway.url, flyway.user, flyway.password and flyway.schemas given as system properties
+// The migration project's step: ./gradlew :adapter-persistence-postgres:flywayMigrate with
+// FLYWAY_URL, FLYWAY_USER, FLYWAY_PASSWORD and FLYWAY_SCHEMAS given as environment variables
 flyway {
     locations = [
         'filesystem:src/main/resources/db/migration'
