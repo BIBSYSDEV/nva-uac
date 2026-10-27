@@ -179,7 +179,7 @@ class UnitLoaderTest {
 
   @Test
   void shouldLoadEveryStagedNameInItsLanguage() {
-    stageNamedUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
+    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
     stageName(TOP_UNIT_OF_UIO, NORWEGIAN_BOKMAAL, "Universitetet i Oslo");
     stageName(TOP_UNIT_OF_UIO, ENGLISH, "University of Oslo");
 
