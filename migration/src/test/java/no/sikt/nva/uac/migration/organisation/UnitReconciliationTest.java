@@ -19,6 +19,10 @@ class UnitReconciliationTest {
   private static final String DISOWNED_UNIT = "185.0.0.0";
   private static final String FACULTY = "185.15.0.0";
   private static final String UNSTAGED_PARENT = "185.99.0.0";
+  private static final String NAME_OF_UIO = "Universitetet i Oslo";
+  private static final String LEADING_ZERO = "185.015.0.0";
+  private static final String WITH_LETTERS = "185.0.0.0x";
+  private static final String MASKED = "185.0.0.0?";
 
   private static MigratedDatabase database;
   private DSLContext sql;
@@ -63,7 +67,7 @@ class UnitReconciliationTest {
   @Test
   void shouldListStagedUnitsThatWereNotLoaded() {
     stageUnit(UIO, null);
-    stageName(UIO, "Universitetet i Oslo");
+    stageName(UIO, NAME_OF_UIO);
 
     var report = reconciliation.report();
 
@@ -90,6 +94,34 @@ class UnitReconciliationTest {
   }
 
   @Test
+  void shouldListNamesWithoutAUnit() {
+    stageName(UIO, NAME_OF_UIO);
+
+    var report = reconciliation.report();
+
+    assertThat(report.namesWithoutUnit()).containsExactly(UIO);
+  }
+
+  @Test
+  void shouldListMalformedIdentifiers() {
+    stageUnit(LEADING_ZERO, null);
+    stageUnit(UIO, null);
+
+    var report = reconciliation.report();
+
+    assertThat(report.malformedIdentifiers()).containsExactly(LEADING_ZERO);
+  }
+
+  @Test
+  void shouldMaskWhatIsNotADigitOrADotInAMalformedIdentifier() {
+    stageUnit(WITH_LETTERS, null);
+
+    var report = reconciliation.report();
+
+    assertThat(report.malformedIdentifiers()).containsExactly(MASKED);
+  }
+
+  @Test
   void shouldListChildrenWhoseParentDoesNotListThem() {
     stageUnit(UIO, null);
     stageUnit(DISOWNED_UNIT, UIO);
@@ -112,13 +144,16 @@ class UnitReconciliationTest {
     var report = reconciliation.report();
 
     assertThat(report.listedChildrenClaimingAnotherParent())
-        .containsExactlyInAnyOrder(FACULTY, DISOWNED_UNIT);
+        .containsExactlyInAnyOrder(UIO + " -> " + FACULTY, UIO + " -> " + DISOWNED_UNIT);
   }
 
   @Test
-  void shouldNotBeCleanWhenTheTwoDirectionsDisagree() {
+  void shouldNotBeCleanWhenAChildIsNotListedByItsParent() {
     stageUnit(UIO, null);
-    stageName(UIO, "Universitetet i Oslo");
+    stageName(UIO, NAME_OF_UIO);
+    stageUnit(FACULTY, UIO);
+    stageName(FACULTY, "Det matematisk-naturvitenskapelige fakultet");
+    stagePart(UIO, FACULTY);
     stageUnit(DISOWNED_UNIT, UIO);
     stageName(DISOWNED_UNIT, "En enhet");
     new UnitLoader(sql).load();
@@ -129,9 +164,24 @@ class UnitReconciliationTest {
   }
 
   @Test
+  void shouldNotBeCleanWhenAListingIsNotClaimedByTheChild() {
+    stageUnit(UIO, null);
+    stageName(UIO, NAME_OF_UIO);
+    stageUnit(FACULTY, UIO);
+    stageName(FACULTY, "Det matematisk-naturvitenskapelige fakultet");
+    stagePart(UIO, FACULTY);
+    stagePart(UIO, DISOWNED_UNIT);
+    new UnitLoader(sql).load();
+
+    var report = reconciliation.report();
+
+    assertThat(report.isClean()).isFalse();
+  }
+
+  @Test
   void shouldBeCleanAfterACompleteLoad() {
     stageUnit(UIO, null);
-    stageName(UIO, "Universitetet i Oslo");
+    stageName(UIO, NAME_OF_UIO);
     stageUnit(FACULTY, UIO);
     stageName(FACULTY, "Det matematisk-naturvitenskapelige fakultet");
     stagePart(UIO, FACULTY);
@@ -153,7 +203,8 @@ class UnitReconciliationTest {
         .contains("| Units | 1 | 0 |")
         .contains("Parents not staged: 1 (" + UNSTAGED_PARENT + ")")
         .contains("Children their parent does not list: 1 (" + FACULTY + ")")
-        .contains("Listed children claiming another parent: 1 (" + DISOWNED_UNIT + ")")
+        .contains(
+            "Listed children claiming another parent: 1 (" + UIO + " -> " + DISOWNED_UNIT + ")")
         .contains("Not clean.");
   }
 

@@ -34,9 +34,23 @@ public record UnitIdentifier(String value) {
    * @throws InvalidIdentifierException if {@code value} is null or not in the required form
    */
   public UnitIdentifier {
-    if (Objects.isNull(value) || !DOTTED_FORM.matcher(value).matches()) {
+    if (isMalformed(value)) {
       throw new InvalidIdentifierException(REQUIRED_FORM);
     }
+  }
+
+  /**
+   * Tells whether a value has the required form, without constructing an identifier.
+   *
+   * @param value the candidate, which may be null
+   * @return true if {@link #parse(String)} would accept the value
+   */
+  public static boolean isWellFormed(String value) {
+    return Objects.nonNull(value) && DOTTED_FORM.matcher(value).matches();
+  }
+
+  private static boolean isMalformed(String value) {
+    return !isWellFormed(value);
   }
 
   /**
