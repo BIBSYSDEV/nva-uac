@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
+import java.util.regex.Pattern;
 import no.sikt.nva.uac.persistence.MigratedDatabase;
 import no.sikt.nva.uac.shared.InvalidIdentifierException;
 import no.sikt.nva.uac.shared.InvalidValueException;
@@ -91,8 +92,13 @@ class UnitLoaderTest {
 
     assertThatThrownBy(loader::load)
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageStartingWith(UnitLoader.PARENTS_FORM_A_CYCLE + ": ")
-        .hasMessageContaining(FACULTY);
+        .hasMessageMatching(
+            Pattern.quote(UnitLoader.PARENTS_FORM_A_CYCLE + ": ")
+                + "("
+                + Pattern.quote(A_UNIT_WITHIN_UIO)
+                + "|"
+                + Pattern.quote(FACULTY)
+                + ")");
   }
 
   @Test
