@@ -20,7 +20,14 @@ The AWS deployment, as two stacks per account.
   which is defined with the pipeline outside this repository.
 - `template.yaml` is the SAM application stack: the Lambda function, the HTTP API with its JWT
   authoriser, the API mapping on the shared domain, and the alarms. Branch stacks deploy this
-  one against the shared data tier of the dev account, each with its own schema.
+  one against the shared data tier of the dev account, each with its own schema. The error-rate
+  alarm counts the 5xx responses clients receive from the API, since the Quarkus adapter turns
+  an exception into a 500 response that Lambda counts as a successful invocation.
+
+The edge in front of the shared domain, CloudFront and WAF, is not part of either stack: it is
+the platform's shared edge, where every NVA API sits behind the same distribution and rules.
+Whether this API needs anything of its own there is a Phase 1 decision, to be taken with the
+platform team.
 
 `./gradlew lintInfrastructure` runs `sam validate --lint` on both, as the pipeline does;
 it needs the SAM CLI, which the shared GitHub workflow does not have, so it is not part of
