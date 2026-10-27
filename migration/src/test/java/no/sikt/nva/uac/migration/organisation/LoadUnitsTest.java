@@ -70,6 +70,15 @@ class LoadUnitsTest {
   }
 
   @Test
+  void shouldRefuseArgumentsOnTheCommandLine() {
+    var anArgument = new String[] {"jdbc:postgresql://x/y"};
+
+    assertThatThrownBy(() -> LoadUnits.main(anArgument))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(LoadUnits.NO_ARGUMENTS);
+  }
+
+  @Test
   void shouldReadTheConnectionFromTheProcessEnvironment() {
     var noArguments = new String[0];
 
