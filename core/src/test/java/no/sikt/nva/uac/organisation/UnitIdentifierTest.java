@@ -70,6 +70,21 @@ class UnitIdentifierTest {
   }
 
   @Test
+  void shouldTellThatAMalformedValueIsNotWellFormed() {
+    assertThat(UnitIdentifier.isWellFormed("185.015.0.0")).isFalse();
+  }
+
+  @Test
+  void shouldTellThatNullIsNotWellFormed() {
+    assertThat(UnitIdentifier.isWellFormed(null)).isFalse();
+  }
+
+  @Test
+  void shouldTellThatADottedValueIsWellFormed() {
+    assertThat(UnitIdentifier.isWellFormed("185.90.0.0")).isTrue();
+  }
+
+  @Test
   void shouldEqualAnotherIdentifierWithTheSameValue() {
     var identifier = UnitIdentifier.parse(UNIT_AT_UIO);
 

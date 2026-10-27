@@ -11,30 +11,40 @@ import java.util.Set;
  * @param loadedUnits units in the real table
  * @param stagedNames names in staging
  * @param loadedNames labels in the real table
+ * @param malformedIdentifiers staged identifiers not in the required form, masked
  * @param unitsNotLoaded staged identifiers absent from the real table
  * @param parentsNotStaged parents named in staging that are not staged themselves
  * @param unitsWithoutName staged units with no staged name in any language
+ * @param namesWithoutUnit identifiers with a staged name but no staged unit
  * @param childrenNotListedByParent staged units whose claimed parent does not list them as a part
- * @param listedChildrenClaimingAnotherParent units listed as a part of a parent that claim a
- *     different parent, or none
+ * @param listedChildrenClaimingAnotherParent listings, as {@code parent -> child}, whose child
+ *     claims a different parent, or none, or is not staged
  */
 public record UnitReconciliationReport(
     long stagedUnits,
     long loadedUnits,
     long stagedNames,
     long loadedNames,
+    Set<String> malformedIdentifiers,
     Set<String> unitsNotLoaded,
     Set<String> parentsNotStaged,
     Set<String> unitsWithoutName,
+    Set<String> namesWithoutUnit,
     Set<String> childrenNotListedByParent,
     Set<String> listedChildrenClaimingAnotherParent) {
 
   private static final int SHOWN_AT_MOST = 20;
+  private static final String COUNT_ROW = "| %s | %s | %s |";
+  private static final String FINDING = "- %s: %s";
+  private static final String CLEAN = "Clean.";
+  private static final String NOT_CLEAN = "Not clean.";
 
   public UnitReconciliationReport {
+    malformedIdentifiers = Set.copyOf(malformedIdentifiers);
     unitsNotLoaded = Set.copyOf(unitsNotLoaded);
     parentsNotStaged = Set.copyOf(parentsNotStaged);
     unitsWithoutName = Set.copyOf(unitsWithoutName);
+    namesWithoutUnit = Set.copyOf(namesWithoutUnit);
     childrenNotListedByParent = Set.copyOf(childrenNotListedByParent);
     listedChildrenClaimingAnotherParent = Set.copyOf(listedChildrenClaimingAnotherParent);
   }
@@ -46,9 +56,11 @@ public record UnitReconciliationReport(
   public boolean isClean() {
     return stagedUnits == loadedUnits
         && stagedNames == loadedNames
+        && malformedIdentifiers.isEmpty()
         && unitsNotLoaded.isEmpty()
         && parentsNotStaged.isEmpty()
         && unitsWithoutName.isEmpty()
+        && namesWithoutUnit.isEmpty()
         && childrenNotListedByParent.isEmpty()
         && listedChildrenClaimingAnotherParent.isEmpty();
   }
@@ -59,19 +71,23 @@ public record UnitReconciliationReport(
         "\n",
         "## Units",
         "",
-        "| Measure | Staged | Loaded |",
-        "|---|---|---|",
-        "| Units | " + stagedUnits + " | " + loadedUnits + " |",
-        "| Names | " + stagedNames + " | " + loadedNames + " |",
+        COUNT_ROW.formatted("Measure", "Staged", "Loaded"),
+        COUNT_ROW.formatted("---", "---", "---"),
+        COUNT_ROW.formatted("Units", stagedUnits, loadedUnits),
+        COUNT_ROW.formatted("Names", stagedNames, loadedNames),
         "",
-        "- Units not loaded: " + describe(unitsNotLoaded),
-        "- Parents not staged: " + describe(parentsNotStaged),
-        "- Units without a name: " + describe(unitsWithoutName),
-        "- Children their parent does not list: " + describe(childrenNotListedByParent),
-        "- Listed children claiming another parent: "
-            + describe(listedChildrenClaimingAnotherParent),
+        FINDING.formatted("Malformed identifiers", describe(malformedIdentifiers)),
+        FINDING.formatted("Units not loaded", describe(unitsNotLoaded)),
+        FINDING.formatted("Parents not staged", describe(parentsNotStaged)),
+        FINDING.formatted("Units without a name", describe(unitsWithoutName)),
+        FINDING.formatted("Names without a unit", describe(namesWithoutUnit)),
+        FINDING.formatted(
+            "Children their parent does not list", describe(childrenNotListedByParent)),
+        FINDING.formatted(
+            "Listed children claiming another parent",
+            describe(listedChildrenClaimingAnotherParent)),
         "",
-        isClean() ? "Clean." : "Not clean.",
+        isClean() ? CLEAN : NOT_CLEAN,
         "");
   }
 
