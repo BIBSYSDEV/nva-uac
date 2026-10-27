@@ -2,10 +2,22 @@
 
 The AWS deployment, as two stacks per account.
 
-- `data-tier.yaml` is deployed once per account and rarely changes: the KMS key, the security
-  groups, the Aurora PostgreSQL Serverless v2 cluster with a writer and a reader, and RDS Proxy
-  with a read-only endpoint. It publishes what the application needs under `/NVA/UAC/...` in SSM,
-  following the house convention. The VPC and subnets are inputs (D14).
+- `data-tier.yaml` is deployed once per account and rarely changes: the security groups, the
+  Aurora PostgreSQL Serverless v2 cluster with a writer and a reader, and RDS Proxy with a
+  read-only endpoint. Storage and the master secret are encrypted with the AWS-managed keys. It
+  publishes what the application needs under `/NVA/UAC/...` in SSM, following the house
+  convention. The VPC and subnets are inputs (D14).
+
+  Fixed at the first deployment, because a change replaces the cluster and starts from an empty
+  database: `DatabaseName`, `MasterUsername`, the cluster identifier derived from `Environment`,
+  and the subnet group. `UpdateReplacePolicy: Snapshot` keeps a snapshot of the old cluster if
+  that happens by mistake, but the data has to be restored by hand.
+
+  The proxy requires IAM authentication. Every caller, the application and the migration step
+  alike, connects with a token from `rds generate-db-auth-token`, never with the master password.
+  The data tier publishes a managed policy granting `rds-db:connect` on the proxy under
+  `/NVA/UAC/Database/MigrationConnectPolicyArn`, for the migration CodeBuild project's role,
+  which is defined with the pipeline outside this repository.
 - `template.yaml` is the SAM application stack: the Lambda function, the HTTP API with its JWT
   authoriser, the API mapping on the shared domain, and the alarms. Branch stacks deploy this
   one against the shared data tier of the dev account, each with its own schema.
