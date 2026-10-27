@@ -11,8 +11,13 @@ def templateLints = [
     tasks.register("lint${template.replace('.yaml', '').split('-').collect { it.capitalize() }.join()}", Exec) {
         group = 'verification'
         description = "Lints infrastructure/${template} with sam validate --lint"
+        def validated = layout.buildDirectory.file("lint/${template}.validated")
         inputs.file("infrastructure/${template}")
+        outputs.file(validated)
         commandLine 'sam', 'validate', '--lint', '--template-file', "infrastructure/${template}"
+        doLast {
+            validated.get().asFile.text = 'validated'
+        }
     }
 }
 
