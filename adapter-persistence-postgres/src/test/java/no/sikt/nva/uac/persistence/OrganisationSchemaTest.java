@@ -50,12 +50,13 @@ class OrganisationSchemaTest {
     assertThatThrownBy(() -> insertRoot(malformed)).isInstanceOf(DataAccessException.class);
   }
 
-  @Test
-  void shouldRejectBlankAcronym() {
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "\t", "\n", " \t\r\n "})
+  void shouldRejectBlankAcronym(String blank) {
     assertThatThrownBy(
             () ->
                 sql.insertInto(UNIT, UNIT.IDENTIFIER, UNIT.ACRONYM)
-                    .values(TOP_UNIT_OF_UIO, " ")
+                    .values(TOP_UNIT_OF_UIO, blank)
                     .execute())
         .isInstanceOf(DataAccessException.class);
   }
@@ -89,11 +90,12 @@ class OrganisationSchemaTest {
         .isInstanceOf(DataAccessException.class);
   }
 
-  @Test
-  void shouldRejectBlankLabel() {
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "\t", "\n", " \t\r\n "})
+  void shouldRejectBlankLabel(String blank) {
     insertRoot(TOP_UNIT_OF_UIO);
 
-    assertThatThrownBy(() -> insertLabel(TOP_UNIT_OF_UIO, NORWEGIAN_BOKMAAL, " "))
+    assertThatThrownBy(() -> insertLabel(TOP_UNIT_OF_UIO, NORWEGIAN_BOKMAAL, blank))
         .isInstanceOf(DataAccessException.class);
   }
 
