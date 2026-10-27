@@ -1,8 +1,8 @@
 name: Build
 permissions:
-  contents: write
-  checks: write
-  pull-requests: write
+  contents: write # To submit dependency graph
+  checks: write # To publish test results
+  pull-requests: write # To comment on PRs
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    uses: BIBSYSDEV/nva-github-workflows/.github/workflows/java.yml@v2
+    uses: BIBSYSDEV/nva-github-workflows/.github/workflows/java.yml@57f2b5e4d1704d1e98da3e38996beb24aef3bf5e # v2
     with:
       java_version: "25"
     secrets:
