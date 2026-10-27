@@ -459,12 +459,12 @@ budget the description says why. Sizes are hand-written lines added.
 
 Still to do in Phase 0, each waiting on something outside the repository:
 
-| Item                                                                                                                                            | Waits on                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Deploy the data tier to dev, register the repository in the master pipelines of `NVA-infrastructure`, and let the pipeline deploy once          | an AWS account and the VPC answer (D14)                                                      |
-| The extract of units from Cristin into the staging tables, both directions of the hierarchy included; the load and the reconciliation are built | read access to Cristin's database                                                            |
-| Least-privilege database user and the IAM credentials provider for the proxy                                                                    | the first deployment                                                                         |
-| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                                                                          | the deployment and the scope agreement with the identity team                                |
+| Item                                                                                                                                            | Waits on                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Deploy the data tier to dev, register the repository in the master pipelines of `NVA-infrastructure`, and let the pipeline deploy once          | an AWS account and the VPC answer (D14)                       |
+| The extract of units from Cristin into the staging tables, both directions of the hierarchy included; the load and the reconciliation are built | read access to Cristin's database                             |
+| Least-privilege database user and the IAM credentials provider for the proxy                                                                    | the first deployment                                          |
+| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                                                                          | the deployment and the scope agreement with the identity team |
 
 ### 13.3 Pattern for every later slice
 

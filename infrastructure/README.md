@@ -17,6 +17,7 @@ The AWS deployment, as two stacks per account.
   alike, connects with a token from `rds generate-db-auth-token`, never with the master password.
   The data tier publishes a managed policy granting `rds-db:connect` on the proxy under
   `/NVA/UAC/Database/MigrationConnectPolicyArn`, which the migration project's role attaches.
+
 - `template.yaml`, at the repository root where the pipeline and the shared workflow expect it,
   is the SAM application stack: the Lambda function, the HTTP API with its JWT authoriser, the
   API mapping on the shared domain, the alarms, and the CodeBuild projects that migrate and
