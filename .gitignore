@@ -61,3 +61,6 @@ external-gits/
 
 ### Python ###
 __pycache__/
+
+### Pipeline bundles ###
+migration-source.zip
