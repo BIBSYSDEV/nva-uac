@@ -1,0 +1,448 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  nva-uac application: one Lambda function behind an HTTP API with a JWT authoriser on the NVA
+  user pool, mapped onto the shared API domain, plus the CodeBuild projects that migrate and
+  rehearse inside the VPC. Reads the data tier from SSM. Deployed by the NVA CodePipeline from
+  packaged.yaml (ADR 0005).
+
+Parameters:
+  ApiDomain:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/ApiDomain
+    Description: The shared custom domain of the NVA APIs.
+  CustomDomainBasePath:
+    Type: String
+    Default: uac
+    Description: The mapping key under the shared domain; branch stacks use the branch name.
+  CognitoUserPoolId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: CognitoUserPoolId
+    Description: The NVA user pool that issues the tokens.
+  BackendClientId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/BackendClientId
+    Description: The client whose tokens the authoriser accepts.
+  SlackSnsArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/Monitoring/SlackSnsArn
+  ProxyEndpoint:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/UAC/Database/ProxyEndpoint
+  ProxyConnectResource:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/UAC/Database/ProxyConnectResource
+  DatabaseName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/UAC/Database/Name
+  ApplicationSecurityGroupId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/UAC/Network/ApplicationSecurityGroupId
+  PrivateSubnetIds:
+    Type: AWS::SSM::Parameter::Value<List<String>>
+    Default: /NVA/UAC/Network/PrivateSubnetIds
+  SchemaName:
+    Type: String
+    Default: public
+    AllowedPattern: "^[a-z][a-z0-9_]{0,62}$"
+    Description: The schema this stack uses; branch stacks get one each on the shared cluster.
+  VpcId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::VPC::Id>
+    Default: /NVA/UAC/Network/VpcId
+  MigrationConnectPolicyArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/UAC/Database/MigrationConnectPolicyArn
+    Description: The data tier's policy granting rds-db:connect on the proxy, for the migration role.
+  MigrationSourceBucket:
+    Type: String
+    Default: "${S3_BUCKET}"
+    Description: The pipeline's artefact bucket, substituted by buildspec.yaml, holding the sources.
+  MigrationSourceVersion:
+    Type: String
+    Default: "${SOURCE_VERSION}"
+    Description: The S3 object version of the sources this deploy migrates with, substituted by buildspec.yaml.
+  DatabaseUser:
+    Type: String
+    Default: nvauac_admin
+    Description: The database user the function connects as through the proxy.
+  MemorySize:
+    Type: Number
+    Default: 2048
+  LogRetentionInDays:
+    Type: Number
+    Default: 90
+
+Globals:
+  Function:
+    Runtime: java25
+    Architectures:
+      - arm64
+    Timeout: 29
+    MemorySize: !Ref MemorySize
+
+Resources:
+  FunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionInDays
+
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionInDays
+
+  Function:
+    Type: AWS::Serverless::Function
+    DependsOn: Migration
+    Properties:
+      CodeUri: app-lambda/build/function.zip
+      Handler: io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest
+      AutoPublishAlias: live
+      SnapStart:
+        ApplyOn: PublishedVersions
+      LoggingConfig:
+        LogGroup: !Ref FunctionLogGroup
+        LogFormat: JSON
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref ApplicationSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          QUARKUS_DATASOURCE_JDBC_URL: !Sub "jdbc:postgresql://${ProxyEndpoint}:5432/${DatabaseName}?currentSchema=${SchemaName}&sslmode=require"
+          QUARKUS_DATASOURCE_USERNAME: !Ref DatabaseUser
+          QUARKUS_OIDC_AUTH_SERVER_URL: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
+          QUARKUS_LOG_LEVEL: INFO
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: rds-db:connect
+              Resource: !Ref ProxyConnectResource
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /q/health
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  MigrationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref MigrationConnectPolicyArn
+      Policies:
+        - PolicyName: MigrateInsideTheVpc
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AWS::StackName}-*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${MigrationSourceBucket}/nva-uac/*"
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !Sub "arn:aws:s3:::${MigrationSourceBucket}"
+              - Effect: Allow
+                Action: ssm:GetParameters
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/NVA/UAC/Database/*"
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                Resource: "*"
+              - Effect: Allow
+                Action: ec2:CreateNetworkInterfacePermission
+                Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+                Condition:
+                  StringEquals:
+                    ec2:AuthorizedService: codebuild.amazonaws.com
+
+  MigrationProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-migration"
+      Description: Applies the Flyway migrations through the proxy; started by the Migration custom resource on every deploy.
+      ServiceRole: !GetAtt MigrationRole.Arn
+      Source:
+        Type: S3
+        Location: !Sub "${MigrationSourceBucket}/nva-uac/migration-source.zip"
+        BuildSpec: buildspec.migrate.yml
+      SourceVersion: !Ref MigrationSourceVersion
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Cache:
+        Type: S3
+        Location: !Sub "${MigrationSourceBucket}/nva-uac/cache"
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:8.0
+      VpcConfig:
+        VpcId: !Ref VpcId
+        Subnets: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+          - !Ref ApplicationSecurityGroupId
+      TimeoutInMinutes: 30
+
+  RehearsalProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-rehearsal"
+      Description: One rehearsal of the Cristin migration; started by hand, the report is the artefact.
+      ServiceRole: !GetAtt MigrationRole.Arn
+      Source:
+        Type: S3
+        Location: !Sub "${MigrationSourceBucket}/nva-uac/migration-source.zip"
+        BuildSpec: buildspec.rehearse.yml
+      SourceVersion: !Ref MigrationSourceVersion
+      Artifacts:
+        Type: S3
+        Location: !Ref MigrationSourceBucket
+        Path: nva-uac/rehearsals
+        NamespaceType: BUILD_ID
+        Name: report
+        Packaging: NONE
+      Cache:
+        Type: S3
+        Location: !Sub "${MigrationSourceBucket}/nva-uac/cache"
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:8.0
+      VpcConfig:
+        VpcId: !Ref VpcId
+        Subnets: !Ref PrivateSubnetIds
+        SecurityGroupIds:
+          - !Ref ApplicationSecurityGroupId
+      TimeoutInMinutes: 120
+
+  MigrationTriggerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionInDays
+
+  MigrationTrigger:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Starts the migration project during a deploy and lets the build answer CloudFormation.
+      Runtime: python3.13
+      Handler: index.handler
+      MemorySize: 256
+      LoggingConfig:
+        LogGroup: !Ref MigrationTriggerLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          PROJECT_NAME: !Ref MigrationProject
+          SOURCE_VERSION: !Ref MigrationSourceVersion
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: codebuild:StartBuild
+              Resource: !GetAtt MigrationProject.Arn
+      InlineCode: |
+        import json
+        import os
+        import urllib.request
+
+        import boto3
+
+        CODEBUILD = boto3.client("codebuild")
+        PROJECT_NAME = os.environ["PROJECT_NAME"]
+        SOURCE_VERSION = os.environ["SOURCE_VERSION"]
+        PUBLIC_SCHEMA = "public"
+        RESPONSE_TIMEOUT_SECONDS = 10
+
+
+        def handler(event: dict, context: object) -> None:
+            try:
+                if deletes_the_shared_schema(event):
+                    respond(event, "SUCCESS", "The public schema is kept")
+                else:
+                    start_build(event)
+            except Exception as failure:
+                respond(event, "FAILED", str(failure))
+
+
+        def deletes_the_shared_schema(event: dict) -> bool:
+            return event["RequestType"] == "Delete" and schema_name(event) == PUBLIC_SCHEMA
+
+
+        def start_build(event: dict) -> None:
+            overrides = {
+                "SCHEMA_NAME": schema_name(event),
+                "DROP_SCHEMA": "true" if event["RequestType"] == "Delete" else "false",
+                "CFN_RESPONSE_URL": event["ResponseURL"],
+                "CFN_STACK_ID": event["StackId"],
+                "CFN_REQUEST_ID": event["RequestId"],
+                "CFN_LOGICAL_ID": event["LogicalResourceId"],
+                "CFN_PHYSICAL_ID": physical_id(event),
+            }
+            CODEBUILD.start_build(
+                projectName=PROJECT_NAME,
+                sourceVersion=SOURCE_VERSION,
+                environmentVariablesOverride=[
+                    {"name": name, "value": value, "type": "PLAINTEXT"}
+                    for name, value in overrides.items()
+                ],
+            )
+
+
+        def schema_name(event: dict) -> str:
+            return event["ResourceProperties"]["SchemaName"]
+
+
+        def physical_id(event: dict) -> str:
+            return f"migration-{schema_name(event)}"
+
+
+        def respond(event: dict, status: str, reason: str) -> None:
+            body = json.dumps(
+                {
+                    "Status": status,
+                    "Reason": reason,
+                    "PhysicalResourceId": physical_id(event),
+                    "StackId": event["StackId"],
+                    "RequestId": event["RequestId"],
+                    "LogicalResourceId": event["LogicalResourceId"],
+                }
+            ).encode()
+            request = urllib.request.Request(
+                event["ResponseURL"], data=body, method="PUT", headers={"Content-Type": ""}
+            )
+            urllib.request.urlopen(request, timeout=RESPONSE_TIMEOUT_SECONDS)
+
+  Migration:
+    Type: Custom::Migration
+    Properties:
+      ServiceToken: !GetAtt MigrationTrigger.Arn
+      SchemaName: !Ref SchemaName
+      SourceVersion: !Ref MigrationSourceVersion
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      Auth:
+        DefaultAuthorizer: NvaJwt
+        Authorizers:
+          NvaJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
+              audience:
+                - !Ref BackendClientId
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: '{ "apiId": "$context.apiId", "requestId": "$context.requestId", "integrationId": "$context.integration.requestId", "requestTime": "$context.requestTime", "requestTimeEpoch": "$context.requestTimeEpoch", "ip": "$context.identity.sourceIp", "httpMethod": "$context.httpMethod", "path": "$context.path", "routeKey": "$context.routeKey", "status": "$context.status", "latency": "$context.integration.latency", "userAgent": "$context.identity.userAgent", "error.message": "$context.error.message" }'
+
+  ApiMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    DependsOn: HttpApiApiGatewayDefaultStage
+    Properties:
+      ApiId: !Ref HttpApi
+      DomainName: !Ref ApiDomain
+      Stage: $default
+      ApiMappingKey: !Ref CustomDomainBasePath
+
+  ErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName} error rate above one percent"
+      AlarmActions:
+        - !Ref SlackSnsArn
+      TreatMissingData: notBreaching
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 1
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Metrics:
+        - Id: errorRate
+          Expression: "IF(requests > 0, 100 * serverErrors / requests, 0)"
+          Label: Server error responses in percent of requests
+          ReturnData: true
+        - Id: serverErrors
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: 5xx
+              Dimensions:
+                - Name: ApiId
+                  Value: !Ref HttpApi
+            Period: 300
+            Stat: Sum
+        - Id: requests
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: Count
+              Dimensions:
+                - Name: ApiId
+                  Value: !Ref HttpApi
+            Period: 300
+            Stat: Sum
+
+  LatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName} p95 duration above one second"
+      AlarmActions:
+        - !Ref SlackSnsArn
+      TreatMissingData: notBreaching
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref Function
+        - Name: Resource
+          Value: !Sub "${Function}:live"
+      ExtendedStatistic: p95
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 1000
+
+Outputs:
+  ApiUrl:
+    Description: The API under the shared domain.
+    Value: !Sub "https://${ApiDomain}/${CustomDomainBasePath}"
+  ExecuteApiUrl:
+    Description: The API's own endpoint, for smoke tests before the mapping is trusted.
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
