@@ -1,0 +1,61 @@
+name: Branch stack
+
+# Deploys the branch as its own stack in the dev account, against the shared data tier with a
+# schema of its own, smoke-tests it, and removes it again. The role, the bucket and the region
+# are repository variables, not literals.
+
+on:
+  push:
+    branches-ignore: [main]
+
+env:
+  SAM_CLI_TELEMETRY: "0"
+  GRADLE_OPTS: "-Dorg.gradle.configuration-cache=false"
+
+jobs:
+  deploy_and_verify:
+    # Skips until the repository variables for the dev account exist
+    if: ${{ vars.AWS_DEV_DEPLOY_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: "25"
+          distribution: corretto
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install aws-sam-cli
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Name the stack and schema after the branch
+        run: |
+          SLUG=$(echo "${GITHUB_REF_NAME}" | tr '/' '-' | tr -c 'a-zA-Z0-9-\n' '-' | cut -c1-40)
+          echo "STACK_NAME=nva-uac-${SLUG}" >> "$GITHUB_ENV"
+          echo "BASE_PATH=uac-${SLUG}" >> "$GITHUB_ENV"
+          echo "SCHEMA_NAME=$(echo "${SLUG}" | tr '-' '_' | tr 'A-Z' 'a-z')" >> "$GITHUB_ENV"
+      - run: ./gradlew :app-lambda:build -x test
+      - name: Migrate the branch schema, from inside the VPC
+        run: infrastructure/scripts/run-codebuild.sh "${{ vars.MIGRATION_CODEBUILD_PROJECT }}" "SCHEMA_NAME=${SCHEMA_NAME}"
+      - name: Deploy the branch stack
+        run: >
+          sam deploy --template-file infrastructure/template.yaml --stack-name "${STACK_NAME}"
+          --s3-bucket "${{ vars.SAM_ARTIFACT_BUCKET }}" --no-confirm-changeset --no-fail-on-empty-changeset
+          --capabilities CAPABILITY_IAM
+          --parameter-overrides "CustomDomainBasePath=${BASE_PATH}" "SchemaName=${SCHEMA_NAME}"
+      - name: Smoke test
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --query "Stacks[0].Outputs[?OutputKey=='ExecuteApiUrl'].OutputValue" --output text)
+          curl --fail --silent --show-error "${URL}/q/health"
+      - name: Remove the branch stack
+        if: always()
+        run: sam delete --no-prompts --stack-name "${STACK_NAME}"
+      - name: Drop the branch schema
+        if: always()
+        run: infrastructure/scripts/run-codebuild.sh "${{ vars.MIGRATION_CODEBUILD_PROJECT }}" "SCHEMA_NAME=${SCHEMA_NAME}" "DROP_SCHEMA=true"

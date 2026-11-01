@@ -35,4 +35,14 @@ the plan, section 13.1, and the pull-request template enforces the description.
 
 ## Building and running
 
-Not yet. The Gradle build arrives in the next pull request of the Phase 0 stack.
+- `./gradlew build` builds every module and runs every gate: tests, 100 % coverage, PMD, Error
+  Prone, dependency analysis, the formatter and Spectral. Docker must be running: the
+  persistence and application tests start PostgreSQL in it. Node is needed for the Markdown
+  and YAML formatting.
+- `./gradlew :app-server:quarkusDev` runs the service locally with Dev Services.
+- `./gradlew :app-lambda:build` produces `app-lambda/build/function.zip` for AWS Lambda.
+- `./gradlew lintInfrastructure` lints the CloudFormation and SAM templates; needs the SAM CLI.
+
+Modules: `core` (model and ports), `adapter-http`, `adapter-persistence-postgres`, `assembly`
+(wiring), `app-lambda`, `app-server`, `test-support`, and `infrastructure` (templates, not a
+Gradle project). Each has a README.

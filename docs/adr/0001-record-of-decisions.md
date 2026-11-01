@@ -9,7 +9,7 @@ Status: Accepted
 nva-uac is delivered in small, stacked pull requests by a team that must understand the
 intention behind every change. The decisions that shape the system were taken while writing
 [PLAN.md](../../PLAN.md) and live in its section 2 as a single table, D1 to D15. Decisions
-marked *Decided* were taken by the product owner; decisions marked *Assumed* hold until someone
+marked _Decided_ were taken by the product owner; decisions marked _Assumed_ hold until someone
 overrides them.
 
 ## Decision
@@ -25,23 +25,23 @@ history of that register:
 
 The decisions as of this record:
 
-| # | Decision | Status |
-|---|---|---|
-| D1 | New, clean API; the NVA clients are adapted | Decided |
-| D2 | Migrate from Cristin's database with SQL tools, rehearsed until tests pass, cut over once in a closed weekend; Cristin closed | Decided |
-| D3 | User-level authorisation stays in the NVA services | Decided |
-| D4 | Cristin identifiers remain the public identifiers | Decided |
-| D5 | Search and facets in PostgreSQL until measurement proves otherwise | Decided |
-| D6 | jOOQ, or another immutable-by-default library, on the Quarkus datasource stack | Decided |
-| D7 | Standard Quarkus HTTP: Lambda HTTP extension behind HTTP API v2 on AWS, plain server elsewhere | Decided |
-| D8 | Person pictures in object storage | Decided |
-| D9 | Multilingual labels as rows | Decided |
-| D10 | Quarkus; JVM with SnapStart on Lambda, native only if the budget is missed | Assumed |
-| D11 | Jena for ontology and tests only; Titanium or direct serialisation for JSON-LD | Assumed |
-| D12 | Existing backend scope first; own scopes registered before Phase 2 | Assumed |
-| D13 | One deployable with five bounded-context modules | Assumed |
-| D14 | Lambda in a VPC with RDS Proxy; Phase 0 settles the network | Assumed |
-| D15 | Aurora Serverless v2 everywhere on AWS, symmetric environments; local PostgreSQL for all automated tests | Decided |
+| #   | Decision                                                                                                                      | Status  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------- |
+| D1  | New, clean API; the NVA clients are adapted                                                                                   | Decided |
+| D2  | Migrate from Cristin's database with SQL tools, rehearsed until tests pass, cut over once in a closed weekend; Cristin closed | Decided |
+| D3  | User-level authorisation stays in the NVA services                                                                            | Decided |
+| D4  | Cristin identifiers remain the public identifiers                                                                             | Decided |
+| D5  | Search and facets in PostgreSQL until measurement proves otherwise                                                            | Decided |
+| D6  | jOOQ, or another immutable-by-default library, on the Quarkus datasource stack                                                | Decided |
+| D7  | Standard Quarkus HTTP: Lambda HTTP extension behind HTTP API v2 on AWS, plain server elsewhere                                | Decided |
+| D8  | Person pictures in object storage                                                                                             | Decided |
+| D9  | Multilingual labels as rows                                                                                                   | Decided |
+| D10 | Quarkus; JVM with SnapStart on Lambda, native only if the budget is missed                                                    | Assumed |
+| D11 | Jena for ontology and tests only; Titanium or direct serialisation for JSON-LD                                                | Assumed |
+| D12 | Existing backend scope first; own scopes registered before Phase 2                                                            | Assumed |
+| D13 | One deployable with five bounded-context modules                                                                              | Assumed |
+| D14 | Lambda in a VPC with RDS Proxy; Phase 0 settles the network                                                                   | Assumed |
+| D15 | Aurora Serverless v2 everywhere on AWS, symmetric environments; local PostgreSQL for all automated tests                      | Decided |
 
 ## Consequences
 

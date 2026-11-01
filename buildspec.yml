@@ -1,0 +1,34 @@
+version: 0.2
+
+env:
+  variables:
+    GRADLE_USER_HOME: "/root/.gradle"
+    GRADLE_OPTS: "-Dorg.gradle.configuration-cache=false"
+    SAM_CLI_TELEMETRY: "0"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+cache:
+  paths:
+    - "/root/.gradle/caches/**/*"
+reports:
+  unit-tests:
+    files:
+      - "*/build/test-results/test/TEST-*.xml"
+    file-format: JUNITXML
+phases:
+  install:
+    runtime-versions:
+      java: corretto25
+    commands:
+      - command -v sam >/dev/null 2>&1 || pip3 install aws-sam-cli
+  build:
+    commands:
+      # The tests start PostgreSQL in Docker, so the CodeBuild project runs in privileged mode
+      - ./gradlew build lintInfrastructure
+  post_build:
+    commands:
+      - sam package --template-file infrastructure/template.yaml --s3-bucket "$S3_BUCKET" --output-template-file packaged.yaml
+artifacts:
+  files:
+    - packaged.yaml
+    - buildspec.migrate.yml
+    - adapter-persistence-postgres/src/main/resources/db/migration/*
