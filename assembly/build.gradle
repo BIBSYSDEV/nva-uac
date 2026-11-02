@@ -1,0 +1,15 @@
+plugins {
+    id 'nva.uac.quarkus-library-conventions'
+}
+
+dependencies {
+    api(project(':adapter-http'))
+    api(project(':adapter-persistence-postgres'))
+    implementation(libs.quarkus.agroal)
+    implementation(libs.quarkus.jdbc.postgresql)
+    implementation(libs.quarkus.flyway)
+    implementation(libs.quarkus.smallrye.health)
+    testImplementation(project(':test-support'))
+    testImplementation(libs.quarkus.test.oidc.server)
+    testImplementation(testFixtures(project(':adapter-persistence-postgres')))
+}

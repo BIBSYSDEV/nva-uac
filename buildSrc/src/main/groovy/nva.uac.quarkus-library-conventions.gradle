@@ -1,0 +1,16 @@
+plugins {
+    id 'nva.uac.quarkus-conventions'
+}
+
+// A library runs as a Quarkus application only in its own tests; the application modules
+// build the deployable artefacts
+tasks.matching {
+    it.name in [
+        'quarkusBuild',
+        'quarkusAppPartsBuild',
+        'quarkusDependenciesBuild',
+        'quarkusShowEffectiveConfig'
+    ]
+}.configureEach {
+    enabled = false
+}

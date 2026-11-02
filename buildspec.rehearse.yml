@@ -1,0 +1,27 @@
+version: 0.2
+
+# One rehearsal of the migration (D2), run from a CodeBuild project inside the data tier's VPC
+# after the extract has filled the staging schema: load, reconcile, and keep the report. The
+# target tables must be empty; drop and migrate the schema first.
+
+env:
+  variables:
+    GRADLE_OPTS: "-Dorg.gradle.configuration-cache=false"
+  parameter-store:
+    PROXY_ENDPOINT: /NVA/UAC/Database/ProxyEndpoint
+    DATABASE_NAME: /NVA/UAC/Database/Name
+    CREDENTIALS_SECRET_ARN: /NVA/UAC/Database/CredentialsSecretArn
+phases:
+  install:
+    runtime-versions:
+      java: corretto25
+  build:
+    commands:
+      - CREDENTIALS=$(aws secretsmanager get-secret-value --secret-id "$CREDENTIALS_SECRET_ARN" --query SecretString --output text)
+      - export MIGRATION_USER=$(echo "$CREDENTIALS" | jq -r .username)
+      - export MIGRATION_PASSWORD=$(echo "$CREDENTIALS" | jq -r .password)
+      - export MIGRATION_URL="jdbc:postgresql://${PROXY_ENDPOINT}:5432/${DATABASE_NAME}?sslmode=require"
+      - ./gradlew :migration:loadUnits --quiet | tee rehearsal-units.md
+artifacts:
+  files:
+    - rehearsal-units.md
