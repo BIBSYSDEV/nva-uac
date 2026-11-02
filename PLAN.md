@@ -131,7 +131,8 @@ nva-uac/
   migration/                     Cristin database -> nva-uac: SQL, reconciliation and fitness reports
   ontology/                      Turtle ontology and Jena round-trip tests; never on a runtime classpath
   acceptance-tests/              BDD through HTTP; Dev Services PostgreSQL locally, a base URL when deployed
-  infrastructure/                SAM template: HTTP API v2, Lambda, Aurora, RDS Proxy, KMS, S3; network stack if D14 needs it
+  template.yaml                  SAM application: HTTP API v2, Lambda, the migration projects; the root, as the pipeline expects
+  infrastructure/                the data tier: Aurora, RDS Proxy, security groups; network stack if D14 needs it
 ```
 
 Rules:
@@ -244,13 +245,18 @@ representations are produced by Titanium JSON-LD or by direct serialisation.
 - RDS Proxy is billed per ACU for Serverless v2 targets. IAM authentication to the proxy works
   the same way as for provisioned instances.
 - S3 bucket for pictures; KMS keys for the bucket, the database and the NIN cipher.
-- Flyway migration runner as a CodeBuild step before the alias is shifted.
+- Flyway migrations run by a CodeBuild project inside the VPC that the application stack
+  defines; a custom resource starts it during the deploy, before the function and its alias
+  are updated (ADR 0005).
 - CloudWatch alarms on error rate and p95 latency, sent to the Slack topic from
   `/NVA/Monitoring/SlackSnsArn`. Log retention set explicitly.
-- Pipeline as the other NVA services: CodeBuild buildspec running the Gradle build, `sam build`
-  and `sam package`; GitHub Actions on the shared BIBSYSDEV Java workflow for pull requests.
-- Per-branch stacks in the dev account follow the house pattern, but share the dev Aurora
-  cluster with one schema per branch; deleting the stack drops the schema.
+- Pipeline as the other NVA services: the per-account CodePipeline from `NVA-infrastructure`
+  builds `main` with `buildspec.yaml` and deploys `packaged.yaml`, with manual approval where
+  the account requires it; GitHub Actions run the shared BIBSYSDEV Java workflow on pull
+  requests (ADR 0005).
+- Branch stacks are deployed by hand in the dev account with `sam deploy` when a change needs
+  one, sharing the dev Aurora cluster with one schema per branch; deleting the stack drops the
+  schema.
 - SSM parameters under `/NVA/...` supply domain, issuer and topic names, as in the existing
   templates. They are read by the template, not by the application.
 
@@ -449,15 +455,16 @@ budget the description says why. Sizes are hand-written lines added.
 | 25  | `phase0/26-migration-reconciliation` | the reconciliation report                                                                                                          | 257  |
 | 26  | `phase0/27-migration-runner`         | the rehearsal step: load, reconcile, report; its buildspec                                                                         | 208  |
 | 27  | `phase0/28-migration-consistency`    | both directions of the hierarchy staged and reconciled; ADR 0004                                                                   | 190  |
+| 28  | `phase0/34-pipeline-codepipeline`    | delivery on the NVA CodePipeline, the migration projects in the stack, ADR 0005                                                    | 595  |
 
 Still to do in Phase 0, each waiting on something outside the repository:
 
-| Item                                                                                                                                            | Waits on                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Deploy the data tier and the application stack to dev, and run the branch workflow once                                                         | an AWS account, the deploy role and bucket as repository variables, and the VPC answer (D14) |
-| The extract of units from Cristin into the staging tables, both directions of the hierarchy included; the load and the reconciliation are built | read access to Cristin's database                                                            |
-| Least-privilege database user and the IAM credentials provider for the proxy                                                                    | the first deployment                                                                         |
-| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                                                                          | the deployment and the scope agreement with the identity team                                |
+| Item                                                                                                                                            | Waits on                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Deploy the data tier to dev, register the repository in the master pipelines of `NVA-infrastructure`, and let the pipeline deploy once          | an AWS account and the VPC answer (D14)                       |
+| The extract of units from Cristin into the staging tables, both directions of the hierarchy included; the load and the reconciliation are built | read access to Cristin's database                             |
+| Least-privilege database user and the IAM credentials provider for the proxy                                                                    | the first deployment                                          |
+| The fitness run and the Phase 0 record (ADR) settling D10, D12 and D14                                                                          | the deployment and the scope agreement with the identity team |
 
 ### 13.3 Pattern for every later slice
 
