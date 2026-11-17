@@ -131,14 +131,10 @@ public final class UnitLoader {
         .execute();
     unit.name()
         .byLanguage()
-        .forEach(
-            (language, text) ->
-                sql.insertInto(
-                        UNIT_LABEL,
-                        UNIT_LABEL.UNIT_IDENTIFIER,
-                        UNIT_LABEL.LANGUAGE,
-                        UNIT_LABEL.TEXT)
-                    .values(unit.identifier().toString(), language.value(), text)
-                    .execute());
+        .forEach((language, text) ->
+            sql.insertInto(
+                    UNIT_LABEL, UNIT_LABEL.UNIT_IDENTIFIER, UNIT_LABEL.LANGUAGE, UNIT_LABEL.TEXT)
+                .values(unit.identifier().toString(), language.value(), text)
+                .execute());
   }
 }
