@@ -52,11 +52,10 @@ class OrganisationSchemaTest {
 
   @Test
   void shouldRejectBlankAcronym() {
-    assertThatThrownBy(
-            () ->
-                sql.insertInto(UNIT, UNIT.IDENTIFIER, UNIT.ACRONYM)
-                    .values(TOP_UNIT_OF_UIO, " ")
-                    .execute())
+    assertThatThrownBy(() ->
+            sql.insertInto(UNIT, UNIT.IDENTIFIER, UNIT.ACRONYM)
+                .values(TOP_UNIT_OF_UIO, " ")
+                .execute())
         .isInstanceOf(DataAccessException.class);
   }
 
