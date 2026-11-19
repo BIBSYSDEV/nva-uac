@@ -27,7 +27,8 @@ authentication needs the Quarkiverse Amazon RDS credentials provider on the appl
   project that runs inside the data tier's VPC. The pipeline runs it before the function alias
   is shifted. `scripts/run-codebuild.sh` starts such a project and waits for it.
 - `.github/workflows/build.yml` runs the shared BIBSYSDEV Java workflow on pull requests and
-  `main`, with Java 25.
+  `main`, with Java 25. Its cfn-lint job lints the templates listed in `.cfnlintrc.yaml`, which
+  is also what a plain `cfn-lint` in the repository root does.
 - `.github/workflows/branch-stack.yml` deploys every branch as its own stack in the dev account
   with a schema of its own on the shared cluster, smoke-tests `/q/health`, and removes both. The
   deploy role, region, artefact bucket and migration project are repository variables.
