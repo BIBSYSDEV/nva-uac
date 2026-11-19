@@ -46,3 +46,7 @@ the plan, section 13.1, and the pull-request template enforces the description.
 Modules: `core` (model and ports), `adapter-http`, `adapter-persistence-postgres`, `assembly`
 (wiring), `app-lambda`, `app-server`, `test-support`, and `infrastructure` (templates, not a
 Gradle project). Each has a README.
+
+## Test
+
+Testing something here.
