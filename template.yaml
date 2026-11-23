@@ -62,9 +62,9 @@ Parameters:
     Default: "${SOURCE_VERSION}"
     Description: The S3 object version of the sources this deploy migrates with, substituted by buildspec.yaml.
   DatabaseUser:
-    Type: String
-    Default: nvauac_admin
-    Description: The database user the function connects as through the proxy.
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /NVA/UAC/Database/MasterUsername
+    Description: The database user the function connects as through the proxy, as the data tier publishes it.
   MemorySize:
     Type: Number
     Default: 2048
