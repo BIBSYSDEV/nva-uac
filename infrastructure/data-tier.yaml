@@ -41,7 +41,7 @@ Parameters:
     Description: Names the cluster and the proxy; decides deletion protection and backup retention.
   LogRetentionDays:
     Type: Number
-    Default: 30
+    Default: 90
     Description: How long the PostgreSQL log is kept in CloudWatch Logs.
 
 Conditions:
