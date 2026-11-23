@@ -3,6 +3,7 @@ package no.sikt.nva.uac.migration.organisation;
 import static no.sikt.nva.uac.persistence.jooq.Tables.UNIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -80,10 +81,14 @@ class LoadUnitsTest {
 
   @Test
   void shouldReadTheConnectionFromTheProcessEnvironment() {
+    assumeTrue(
+        System.getenv(LoadUnits.URL_VARIABLE) == null,
+        "A connection is exported in this shell; running main would load into that database");
     var noArguments = new String[0];
 
     assertThatThrownBy(() -> LoadUnits.main(noArguments))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(LoadUnits.MISSING_VARIABLE + ": " + LoadUnits.URL_VARIABLE);
   }
 
   @Test
