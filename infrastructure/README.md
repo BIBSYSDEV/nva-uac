@@ -23,7 +23,8 @@ The AWS deployment, as two stacks per account.
   API mapping on the shared domain, the alarms, and the CodeBuild projects that migrate and
   rehearse inside the VPC. The error-rate alarm counts the 5xx responses clients receive from
   the API, since the Quarkus adapter turns an exception into a 500 response that Lambda counts
-  as a successful invocation.
+  as a successful invocation. The latency alarm reads the API's latency for the same reason: the
+  function's duration leaves out SnapStart restores and the gateway itself.
 
 The edge in front of the shared domain, CloudFront and WAF, is not part of either stack: it is
 the platform's shared edge, where every NVA API sits behind the same distribution and rules.

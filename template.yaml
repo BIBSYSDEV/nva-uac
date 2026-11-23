@@ -421,17 +421,15 @@ Resources:
   LatencyAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub "${AWS::StackName} p95 duration above one second"
+      AlarmName: !Sub "${AWS::StackName} p95 latency above one second"
       AlarmActions:
         - !Ref SlackSnsArn
       TreatMissingData: notBreaching
-      Namespace: AWS/Lambda
-      MetricName: Duration
+      Namespace: AWS/ApiGateway
+      MetricName: Latency
       Dimensions:
-        - Name: FunctionName
-          Value: !Ref Function
-        - Name: Resource
-          Value: !Sub "${Function}:live"
+        - Name: ApiId
+          Value: !Ref HttpApi
       ExtendedStatistic: p95
       Period: 300
       EvaluationPeriods: 3
