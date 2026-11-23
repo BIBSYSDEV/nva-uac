@@ -133,10 +133,11 @@ Resources:
                 - !Ref BackendClientId
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-        Format: '{ "requestId": "$context.requestId", "requestTime": "$context.requestTime", "httpMethod": "$context.httpMethod", "path": "$context.path", "routeKey": "$context.routeKey", "status": "$context.status", "latency": "$context.integrationLatency", "ip": "$context.identity.sourceIp", "userAgent": "$context.identity.userAgent", "error": "$context.error.message" }'
+        Format: '{ "apiId": "$context.apiId", "requestId": "$context.requestId", "integrationId": "$context.integration.requestId", "requestTime": "$context.requestTime", "requestTimeEpoch": "$context.requestTimeEpoch", "ip": "$context.identity.sourceIp", "httpMethod": "$context.httpMethod", "path": "$context.path", "routeKey": "$context.routeKey", "status": "$context.status", "latency": "$context.integration.latency", "userAgent": "$context.identity.userAgent", "error.message": "$context.error.message" }'
 
   ApiMapping:
     Type: AWS::ApiGatewayV2::ApiMapping
+    DependsOn: HttpApiApiGatewayDefaultStage
     Properties:
       ApiId: !Ref HttpApi
       DomainName: !Ref ApiDomain
@@ -156,33 +157,29 @@ Resources:
       DatapointsToAlarm: 2
       Metrics:
         - Id: errorRate
-          Expression: "IF(invocations > 0, 100 * errors / invocations, 0)"
-          Label: Error rate in percent
+          Expression: "IF(requests > 0, 100 * serverErrors / requests, 0)"
+          Label: Server error responses in percent of requests
           ReturnData: true
-        - Id: errors
+        - Id: serverErrors
           ReturnData: false
           MetricStat:
             Metric:
-              Namespace: AWS/Lambda
-              MetricName: Errors
+              Namespace: AWS/ApiGateway
+              MetricName: 5xx
               Dimensions:
-                - Name: FunctionName
-                  Value: !Ref Function
-                - Name: Resource
-                  Value: !Sub "${Function}:live"
+                - Name: ApiId
+                  Value: !Ref HttpApi
             Period: 300
             Stat: Sum
-        - Id: invocations
+        - Id: requests
           ReturnData: false
           MetricStat:
             Metric:
-              Namespace: AWS/Lambda
-              MetricName: Invocations
+              Namespace: AWS/ApiGateway
+              MetricName: Count
               Dimensions:
-                - Name: FunctionName
-                  Value: !Ref Function
-                - Name: Resource
-                  Value: !Sub "${Function}:live"
+                - Name: ApiId
+                  Value: !Ref HttpApi
             Period: 300
             Stat: Sum
 
