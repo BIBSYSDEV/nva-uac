@@ -14,15 +14,12 @@ dependencies {
     testRuntimeOnly(nvaCatalog.junit.platform.launcher)
 }
 
-// The rehearsal step for units, run by the pipeline inside the data tier's VPC:
-// MIGRATION_URL, MIGRATION_USER and MIGRATION_PASSWORD name the target database
+// The rehearsal step for units, run by the pipeline inside the data tier's VPC. The step reads
+// MIGRATION_URL, MIGRATION_USER and MIGRATION_PASSWORD from its own environment, so nothing
+// about the connection appears on a command line or in Gradle's output
 tasks.register('loadUnits', JavaExec) {
     group = 'migration'
     description = 'Loads staged units into the real tables, reconciles, and fails unless clean'
     mainClass = 'no.sikt.nva.uac.migration.organisation.LoadUnits'
     classpath = sourceSets.main.runtimeClasspath
-    args(
-            providers.environmentVariable('MIGRATION_URL').getOrElse(''),
-            providers.environmentVariable('MIGRATION_USER').getOrElse(''),
-            providers.environmentVariable('MIGRATION_PASSWORD').getOrElse(''))
 }
