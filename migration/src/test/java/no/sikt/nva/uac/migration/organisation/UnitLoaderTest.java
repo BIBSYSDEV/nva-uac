@@ -5,11 +5,14 @@ import static no.sikt.nva.uac.persistence.jooq.Tables.UNIT_LABEL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Map;
+import java.util.regex.Pattern;
 import no.sikt.nva.uac.persistence.MigratedDatabase;
 import no.sikt.nva.uac.shared.InvalidIdentifierException;
 import no.sikt.nva.uac.shared.InvalidValueException;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
+import org.jooq.exception.DataAccessException;
 import org.jooq.impl.DSL;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -22,6 +25,10 @@ class UnitLoaderTest {
   private static final String A_UNIT_WITHIN_UIO = "185.0.0.0";
   private static final String FACULTY = "185.15.0.0";
   private static final String NOT_STAGED = "185.99.0.0";
+  private static final String ACRONYM_OF_UIO = "UiO";
+  private static final String NORWEGIAN_BOKMAAL = "nb";
+  private static final String ENGLISH = "en";
+  private static final String TAG_LONGER_THAN_THE_COLUMN = "nb-aaaaaaaa-bbbbbbbb-cccccccc-dddddddd";
 
   private static MigratedDatabase database;
   private DSLContext sql;
@@ -75,7 +82,7 @@ class UnitLoaderTest {
 
     assertThatThrownBy(loader::load)
         .isInstanceOf(IllegalStateException.class)
-        .hasMessage(UnitLoader.PARENT_NOT_STAGED);
+        .hasMessage(UnitLoader.PARENT_NOT_STAGED + ": " + NOT_STAGED);
   }
 
   @Test
@@ -85,7 +92,24 @@ class UnitLoaderTest {
 
     assertThatThrownBy(loader::load)
         .isInstanceOf(IllegalStateException.class)
-        .hasMessage(UnitLoader.PARENTS_FORM_A_CYCLE);
+        .hasMessageMatching(
+            Pattern.quote(UnitLoader.PARENTS_FORM_A_CYCLE + ": ")
+                + "("
+                + Pattern.quote(A_UNIT_WITHIN_UIO)
+                + "|"
+                + Pattern.quote(FACULTY)
+                + ")");
+  }
+
+  @Test
+  void shouldRejectACycleThatTheStartingUnitIsNotPartOf() {
+    stageUnit(TOP_UNIT_OF_UIO, A_UNIT_WITHIN_UIO, null);
+    stageUnit(A_UNIT_WITHIN_UIO, FACULTY, null);
+    stageUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
+
+    assertThatThrownBy(loader::load)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageStartingWith(UnitLoader.PARENTS_FORM_A_CYCLE + ": ");
   }
 
   @Test
@@ -99,34 +123,90 @@ class UnitLoaderTest {
   }
 
   @Test
-  void shouldLoadParentsBeforeChildrenWhateverTheOrderOrTheIdentifiers() {
-    stageUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
-    stageUnit(A_UNIT_WITHIN_UIO, TOP_UNIT_OF_UIO, null);
-    stageUnit(TOP_UNIT_OF_UIO, null, "UiO");
+  void shouldFailWhenAStagedNameDoesNotFitItsColumn() {
+    stageUnit(TOP_UNIT_OF_UIO, null, null);
+    stageName(TOP_UNIT_OF_UIO, TAG_LONGER_THAN_THE_COLUMN, "Universitetet i Oslo");
 
-    var loaded = loader.load();
-
-    assertThat(loaded).isEqualTo(3);
+    assertThatThrownBy(loader::load).isInstanceOf(DataAccessException.class);
   }
 
   @Test
-  void shouldLoadEveryStagedName() {
-    stageUnit(TOP_UNIT_OF_UIO, null, "UiO");
-    stageName(TOP_UNIT_OF_UIO, "nb", "Universitetet i Oslo");
-    stageName(TOP_UNIT_OF_UIO, "en", "University of Oslo");
+  void shouldWriteNothingWhenAnInsertFailsAfterOthersSucceeded() {
+    stageUnit(TOP_UNIT_OF_UIO, null, null);
+    stageUnit(FACULTY, TOP_UNIT_OF_UIO, null);
+    stageName(FACULTY, TAG_LONGER_THAN_THE_COLUMN, "Et fakultet");
+
+    var unitsAfterFailedLoad = unitCountAfterFailedLoad();
+
+    assertThat(unitsAfterFailedLoad).isZero();
+  }
+
+  @Test
+  void shouldLoadParentsBeforeChildrenWhateverTheOrderOrTheIdentifiers() {
+    stageUnit(FACULTY, A_UNIT_WITHIN_UIO, null);
+    stageUnit(A_UNIT_WITHIN_UIO, TOP_UNIT_OF_UIO, null);
+    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
 
     loader.load();
 
-    assertThat(sql.fetchCount(UNIT_LABEL)).isEqualTo(2);
+    assertThat(loadedParents())
+        .hasSize(3)
+        .containsEntry(FACULTY, A_UNIT_WITHIN_UIO)
+        .containsEntry(A_UNIT_WITHIN_UIO, TOP_UNIT_OF_UIO)
+        .containsEntry(TOP_UNIT_OF_UIO, null);
+  }
+
+  @Test
+  void shouldLoadTheAcronymWhereThereIsOne() {
+    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
+    stageUnit(FACULTY, TOP_UNIT_OF_UIO, null);
+
+    loader.load();
+
+    assertThat(loadedAcronyms())
+        .containsEntry(TOP_UNIT_OF_UIO, ACRONYM_OF_UIO)
+        .containsEntry(FACULTY, null);
+  }
+
+  @Test
+  void shouldLoadEveryStagedNameInItsLanguage() {
+    stageUnit(TOP_UNIT_OF_UIO, null, ACRONYM_OF_UIO);
+    stageName(TOP_UNIT_OF_UIO, NORWEGIAN_BOKMAAL, "Universitetet i Oslo");
+    stageName(TOP_UNIT_OF_UIO, ENGLISH, "University of Oslo");
+
+    loader.load();
+
+    assertThat(loadedNamesOf(TOP_UNIT_OF_UIO))
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(NORWEGIAN_BOKMAAL, "Universitetet i Oslo", ENGLISH, "University of Oslo"));
   }
 
   private int unitCountAfterFailedLoad() {
     try {
       loader.load();
-    } catch (IllegalStateException expected) {
+    } catch (IllegalStateException | DataAccessException expected) {
       return sql.fetchCount(UNIT);
     }
     throw new AssertionError("The load should have failed");
+  }
+
+  private Map<String, String> loadedParents() {
+    return sql.select(UNIT.IDENTIFIER, UNIT.PARENT_IDENTIFIER)
+        .from(UNIT)
+        .fetchMap(UNIT.IDENTIFIER, UNIT.PARENT_IDENTIFIER);
+  }
+
+  private Map<String, String> loadedAcronyms() {
+    return sql.select(UNIT.IDENTIFIER, UNIT.ACRONYM)
+        .from(UNIT)
+        .fetchMap(UNIT.IDENTIFIER, UNIT.ACRONYM);
+  }
+
+  private Map<String, String> loadedNamesOf(String identifier) {
+    return sql.select(UNIT_LABEL.LANGUAGE, UNIT_LABEL.TEXT)
+        .from(UNIT_LABEL)
+        .where(UNIT_LABEL.UNIT_IDENTIFIER.eq(identifier))
+        .fetchMap(UNIT_LABEL.LANGUAGE, UNIT_LABEL.TEXT);
   }
 
   private void stageUnit(String identifier, String parent, String acronym) {
