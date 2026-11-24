@@ -455,7 +455,7 @@ budget the description says why. Sizes are hand-written lines added.
 | 25  | `phase0/26-migration-reconciliation` | the reconciliation report                                                                                                          | 257  |
 | 26  | `phase0/27-migration-runner`         | the rehearsal step: load, reconcile, report; its buildspec                                                                         | 208  |
 | 27  | `phase0/28-migration-consistency`    | both directions of the hierarchy staged and reconciled; ADR 0004                                                                   | 190  |
-| 28  | `phase0/34-pipeline-codepipeline`    | delivery on the NVA CodePipeline, the migration projects in the stack, ADR 0005                                                    | 595  |
+| 28  | `phase0/37-pipeline-codepipeline`    | delivery on the NVA CodePipeline, the migration projects in the stack, ADR 0005                                                    | 595  |
 
 Still to do in Phase 0, each waiting on something outside the repository:
 

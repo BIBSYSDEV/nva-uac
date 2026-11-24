@@ -48,8 +48,9 @@ repository there is the step outside this repository. Its stages are fixed:
 1. **Source** pulls `main`.
 2. **Build** runs `buildspec.yaml` in a CodeBuild project with Docker, because the tests start
    PostgreSQL: the Gradle build with every gate, the template lints, `sam package`, and an upload
-   of the sources to the artefact bucket for the projects below. The artefact is `packaged.yaml`,
-   with the bucket and the object version of the sources substituted in.
+   of the sources to the artefact bucket for the projects below, under a key of their own per
+   commit, since the bucket expires overwritten versions after a day. The artefact is
+   `packaged.yaml`, with the bucket and that key substituted in.
 3. **Deploy** updates the stack with CloudFormation, after a manual approval where the account
    asks for one. The `Migration` custom resource starts the migration project with the uploaded
    sources, and the function waits for it, so the schema is current before a new version takes
@@ -72,6 +73,9 @@ user with an IAM token through the proxy:
   aws codebuild start-build --project-name <stack>-rehearsal
   ```
 
+Before the first deploy in an account, the deploy role in `NVA-infrastructure` must be allowed to
+create, update, delete and read CodeBuild projects; today it may only manage report groups.
+
 `.github/workflows/build.yml` runs the shared BIBSYSDEV Java workflow on pull requests and
 `main`, with Java 25; the OpenAPI lint is left to the Gradle build, since the contract does not
 live in `docs/`. Its cfn-lint job lints the templates listed in `.cfnlintrc.yaml`, which is also
@@ -85,10 +89,11 @@ does, then deploy with the schema named after the branch, prefixed so it can nev
 
 ```
 zip --quiet --recurse-paths migration-source.zip . --exclude '.git/*' 'build/*' '*/build/*' '.gradle/*' '*/.gradle/*'
-VERSION=$(aws s3api put-object --bucket "$BUCKET" --key nva-uac/migration-source.zip --body migration-source.zip --query VersionId --output text)
+KEY="nva-uac/migration-source-$(git rev-parse HEAD).zip"
+aws s3api put-object --bucket "$BUCKET" --key "$KEY" --body migration-source.zip > /dev/null
 ./gradlew :app-lambda:build -x test
 sam deploy --stack-name nva-uac-branch-<slug> --s3-bucket "$BUCKET" --capabilities CAPABILITY_IAM \
   --parameter-overrides CustomDomainBasePath=uac-<slug> SchemaName=branch_<slug> \
-  MigrationSourceBucket="$BUCKET" MigrationSourceVersion="$VERSION"
+  MigrationSourceBucket="$BUCKET" MigrationSourceKey="$KEY"
 sam delete --stack-name nva-uac-branch-<slug>
 ```

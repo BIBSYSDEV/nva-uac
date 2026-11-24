@@ -57,10 +57,10 @@ Parameters:
     Type: String
     Default: "${S3_BUCKET}"
     Description: The pipeline's artefact bucket, substituted by buildspec.yaml, holding the sources.
-  MigrationSourceVersion:
+  MigrationSourceKey:
     Type: String
-    Default: "${SOURCE_VERSION}"
-    Description: The S3 object version of the sources this deploy migrates with, substituted by buildspec.yaml.
+    Default: "${MIGRATION_SOURCE_KEY}"
+    Description: The S3 key of the sources this deploy migrates with, one per commit, substituted by buildspec.yaml.
   DatabaseUser:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /NVA/UAC/Database/MasterUsername
@@ -81,7 +81,7 @@ Globals:
     MemorySize: !Ref MemorySize
 
 Resources:
-  FunctionLogGroup:
+  ApiFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       RetentionInDays: !Ref LogRetentionInDays
@@ -91,7 +91,7 @@ Resources:
     Properties:
       RetentionInDays: !Ref LogRetentionInDays
 
-  Function:
+  ApiFunction:
     Type: AWS::Serverless::Function
     DependsOn: Migration
     Properties:
@@ -101,7 +101,7 @@ Resources:
       SnapStart:
         ApplyOn: PublishedVersions
       LoggingConfig:
-        LogGroup: !Ref FunctionLogGroup
+        LogGroup: !Ref ApiFunctionLogGroup
         LogFormat: JSON
       VpcConfig:
         SecurityGroupIds:
@@ -121,14 +121,6 @@ Resources:
               Action: rds-db:connect
               Resource: !Ref ProxyConnectResource
       Events:
-        Health:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /q/health
-            Method: GET
-            Auth:
-              Authorizer: NONE
         Api:
           Type: HttpApi
           Properties:
@@ -162,7 +154,6 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                  - s3:GetObjectVersion
                   - s3:PutObject
                 Resource: !Sub "arn:aws:s3:::${MigrationSourceBucket}/nva-uac/*"
               - Effect: Allow
@@ -198,9 +189,8 @@ Resources:
       ServiceRole: !GetAtt MigrationRole.Arn
       Source:
         Type: S3
-        Location: !Sub "${MigrationSourceBucket}/nva-uac/migration-source.zip"
+        Location: !Sub "${MigrationSourceBucket}/${MigrationSourceKey}"
         BuildSpec: buildspec.migrate.yml
-      SourceVersion: !Ref MigrationSourceVersion
       Artifacts:
         Type: NO_ARTIFACTS
       Cache:
@@ -225,9 +215,8 @@ Resources:
       ServiceRole: !GetAtt MigrationRole.Arn
       Source:
         Type: S3
-        Location: !Sub "${MigrationSourceBucket}/nva-uac/migration-source.zip"
+        Location: !Sub "${MigrationSourceBucket}/${MigrationSourceKey}"
         BuildSpec: buildspec.rehearse.yml
-      SourceVersion: !Ref MigrationSourceVersion
       Artifacts:
         Type: S3
         Location: !Ref MigrationSourceBucket
@@ -267,7 +256,6 @@ Resources:
       Environment:
         Variables:
           PROJECT_NAME: !Ref MigrationProject
-          SOURCE_VERSION: !Ref MigrationSourceVersion
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -283,7 +271,6 @@ Resources:
 
         CODEBUILD = boto3.client("codebuild")
         PROJECT_NAME = os.environ["PROJECT_NAME"]
-        SOURCE_VERSION = os.environ["SOURCE_VERSION"]
         PUBLIC_SCHEMA = "public"
         RESPONSE_TIMEOUT_SECONDS = 10
 
@@ -312,9 +299,11 @@ Resources:
                 "CFN_LOGICAL_ID": event["LogicalResourceId"],
                 "CFN_PHYSICAL_ID": physical_id(event),
             }
+            # The sources come with the event, not the project, so a rollback migrates with the
+            # sources of the version it rolls back to
             CODEBUILD.start_build(
                 projectName=PROJECT_NAME,
-                sourceVersion=SOURCE_VERSION,
+                sourceLocationOverride=event["ResourceProperties"]["SourceLocation"],
                 environmentVariablesOverride=[
                     {"name": name, "value": value, "type": "PLAINTEXT"}
                     for name, value in overrides.items()
@@ -350,8 +339,11 @@ Resources:
     Type: Custom::Migration
     Properties:
       ServiceToken: !GetAtt MigrationTrigger.Arn
+      # Just above the migration project's 30 minutes, so a build that dies before it can
+      # answer fails the deployment instead of holding it for CloudFormation's default hour
+      ServiceTimeout: 2100
       SchemaName: !Ref SchemaName
-      SourceVersion: !Ref MigrationSourceVersion
+      SourceLocation: !Sub "${MigrationSourceBucket}/${MigrationSourceKey}"
 
   HttpApi:
     Type: AWS::Serverless::HttpApi

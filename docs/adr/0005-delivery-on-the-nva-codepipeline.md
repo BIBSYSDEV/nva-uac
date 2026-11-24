@@ -35,7 +35,10 @@ report. Branch stacks are deployed by hand when a change needs one.
 `branch-stack.yml` and `run-codebuild.sh` are gone. `template.yaml` gains the two projects,
 their role, the trigger function and the custom resource, and it reads the VPC id and the
 connect policy from SSM, which the data tier must publish. `buildspec.yaml` uploads the sources
-and substitutes the bucket and the object version into `packaged.yaml`, as the other services
-substitute their build timestamp. The buildspecs take their password from
-`aws rds generate-db-auth-token` and read the user name from SSM. Registering the repository
-in the master pipelines of each account is the remaining step outside this repository.
+under a key per commit and substitutes the bucket and the key into `packaged.yaml`, as the other
+services substitute their build timestamp; the custom resource passes that location to the
+build, so a rollback migrates with the sources it rolls back to. The buildspecs take their
+password from `aws rds generate-db-auth-token` and read the user name from SSM. Two steps remain
+outside this repository: the deploy role in `NVA-infrastructure` must be allowed to manage
+CodeBuild projects, and the repository must be registered in the master pipelines of each
+account.

@@ -11,7 +11,6 @@ env:
     GRADLE_OPTS: "-Dorg.gradle.configuration-cache=false"
     SAM_CLI_TELEMETRY: "0"
     TESTCONTAINERS_RYUK_DISABLED: "true"
-    MIGRATION_SOURCE_KEY: nva-uac/migration-source.zip
 cache:
   paths:
     - "/root/.gradle/caches/**/*"
@@ -30,10 +29,13 @@ phases:
     commands:
       - ./gradlew build lintInfrastructure
       - zip --quiet --recurse-paths migration-source.zip . --exclude '.git/*' 'build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '.aws-sam/*' 'fitness/*' 'packaged*.yaml'
-      - SOURCE_VERSION=$(aws s3api put-object --bucket "$S3_BUCKET" --key "$MIGRATION_SOURCE_KEY" --body migration-source.zip --query VersionId --output text)
+      # One key per commit, because the artefact bucket expires overwritten versions after a day
+      # while a deploy may wait longer for approval
+      - MIGRATION_SOURCE_KEY="nva-uac/migration-source-${CODEBUILD_RESOLVED_SOURCE_VERSION:-build-$CODEBUILD_BUILD_NUMBER}.zip"
+      - aws s3api put-object --bucket "$S3_BUCKET" --key "$MIGRATION_SOURCE_KEY" --body migration-source.zip > /dev/null
       - sam package --template-file template.yaml --s3-bucket "$S3_BUCKET" --output-template-file packaged_raw.yaml
-      - export S3_BUCKET SOURCE_VERSION
-      - envsubst '${S3_BUCKET} ${SOURCE_VERSION}' < packaged_raw.yaml > packaged.yaml
+      - export S3_BUCKET MIGRATION_SOURCE_KEY
+      - envsubst '${S3_BUCKET} ${MIGRATION_SOURCE_KEY}' < packaged_raw.yaml > packaged.yaml
 artifacts:
   files:
     - packaged.yaml
