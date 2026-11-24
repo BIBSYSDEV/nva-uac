@@ -26,10 +26,11 @@ The AWS deployment, as two stacks per account.
   as a successful invocation. The latency alarm reads the API's latency for the same reason: the
   function's duration leaves out SnapStart restores and the gateway itself.
 
-The edge in front of the shared domain, CloudFront and WAF, is not part of either stack: it is
-the platform's shared edge, where every NVA API sits behind the same distribution and rules.
-Whether this API needs anything of its own there is a Phase 1 decision, to be taken with the
-platform team.
+The shared domain is an API Gateway custom domain defined in `nva-common-resources`, and it is
+edge-optimized. An HTTP API can only be mapped onto a Regional custom domain, so `ApiMapping`
+cannot attach to the shared domain as it stands (PLAN.md section 11); AWS WAF does not support
+HTTP APIs either, should this API ever need it. How to settle it, a REST API, a domain of its own
+or CloudFront in front, is decided before the first deploy and recorded as an ADR.
 
 `./gradlew lintInfrastructure` runs `sam validate --lint` on both, as the pipeline does; it
 needs the SAM CLI, which the shared GitHub workflow does not have, so it is not part of
