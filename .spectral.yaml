@@ -1,2 +1,7 @@
 extends:
   - spectral:oas
+rules:
+  # The contract authenticates with a bearer token and lists the scopes an operation needs as
+  # role names, which OpenAPI 3.1 allows for schemes other than oauth2. This rule only knows
+  # oauth2 scopes and would flag every one of them.
+  oas3-operation-security-defined: off
