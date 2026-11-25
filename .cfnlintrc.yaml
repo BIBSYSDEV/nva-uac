@@ -1,3 +1,3 @@
 templates:
-  - infrastructure/template.yaml
+  - template.yaml
   - infrastructure/data-tier.yaml

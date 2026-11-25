@@ -8,7 +8,7 @@ function's logs. The script needs only Python 3 and the AWS CLI with credentials
 export UAC_TOKEN="$(...)"
 python3 -I fitness/measure.py \
   --base-url https://api.dev.nva.aws.unit.no/uac \
-  --function nva-uac-dev-Function \
+  --function nva-uac-dev-ApiFunction \
   --api-id a1b2c3d4
 ```
 
