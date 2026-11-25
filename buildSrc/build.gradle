@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.bibsysdev:nva-gradle-plugins:1.0.14'
+    implementation 'com.github.bibsysdev:nva-gradle-plugins:1.0.16'
     implementation(libs.quarkus.gradle.plugin)
     implementation(libs.jooq.gradle.plugin)
     implementation(libs.flyway.gradle.plugin)
