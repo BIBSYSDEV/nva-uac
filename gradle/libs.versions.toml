@@ -1,7 +1,7 @@
 [versions]
 quarkus = "3.40.1.2"
-jooq = "3.21.9"
-flyway = "13.12.1"
+jooq = "3.21.10"
+flyway = "13.12.2"
 postgresql-driver = "42.7.14"
 jooq-gradle-plugin = "10.2.1"
 
