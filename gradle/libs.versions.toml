@@ -7,6 +7,9 @@ jooq-gradle-plugin = "10.2.1"
 
 [libraries]
 quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
+quarkus-amazon-services-bom = { module = "io.quarkus.platform:quarkus-amazon-services-bom", version.ref = "quarkus" }
+quarkus-amazon-rds = { module = "io.quarkiverse.amazonservices:quarkus-amazon-rds" }
+awssdk-url-connection-client = { module = "software.amazon.awssdk:url-connection-client" }
 quarkus-gradle-plugin = { module = "io.quarkus:gradle-application-plugin", version.ref = "quarkus" }
 quarkus-jacoco = { module = "io.quarkus:quarkus-jacoco" }
 quarkus-junit5 = { module = "io.quarkus:quarkus-junit5" }
