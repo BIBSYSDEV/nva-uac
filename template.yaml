@@ -114,6 +114,8 @@ Resources:
           UAC_DATABASE_HOST: !Ref ProxyEndpoint
           QUARKUS_OIDC_AUTH_SERVER_URL: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
           QUARKUS_LOG_LEVEL: INFO
+          # REST API events from the shared domain keep the base path in the path (ADR 0006)
+          QUARKUS_HTTP_ROOT_PATH: !Sub "/${CustomDomainBasePath}"
       Policies:
         - AWSLambdaVPCAccessExecutionRole
         - Version: "2012-10-17"
