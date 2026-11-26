@@ -9,5 +9,9 @@ handler `io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest` o
 runtime. Configuration that differs per environment, the OIDC issuer and the data source, is
 supplied by the deployment as environment variables.
 
+On AWS the data source logs in to RDS Proxy with an IAM authentication token from the
+Quarkiverse Amazon RDS credentials provider, so this module, unlike `app-server`, depends on the
+AWS SDK. Locally and in tests it uses the Dev Services password.
+
 The test sends requests through the mock event server the extension provides in tests, so the
 event conversion is exercised, against a PostgreSQL started by Dev Services.

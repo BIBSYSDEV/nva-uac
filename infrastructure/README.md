@@ -14,7 +14,7 @@ The AWS deployment, as two stacks per account.
   that happens by mistake, but the data has to be restored by hand.
 
   The proxy requires IAM authentication. Every caller, the application and the migration step
-  alike, connects with a token from `rds generate-db-auth-token`, never with the master password.
+  alike, connects with an IAM authentication token, never with the master password.
   The data tier publishes a managed policy granting `rds-db:connect` on the proxy under
   `/NVA/UAC/Database/MigrationConnectPolicyArn`, which the migration project's role attaches.
 
@@ -36,9 +36,9 @@ or CloudFront in front, is decided before the first deploy and recorded as an AD
 needs the SAM CLI, which the shared GitHub workflow does not have, so it is not part of
 `check`. The shared workflow lints `template.yaml` with cfn-lint itself.
 
-Known follow-ups before Phase 1: the application connects through the proxy as the master user,
-which must become a least-privilege database user with its own secret; and the proxy's IAM
-authentication needs the Quarkiverse Amazon RDS credentials provider on the application side.
+The function logs in to the proxy with an IAM authentication token from the Quarkiverse Amazon
+RDS credentials provider, configured in `app-lambda`. Known follow-up before Phase 1: the function
+and the migration connect as the master user, which must become least-privilege database users.
 
 ## Pipeline
 

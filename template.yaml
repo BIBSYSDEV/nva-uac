@@ -111,6 +111,7 @@ Resources:
         Variables:
           QUARKUS_DATASOURCE_JDBC_URL: !Sub "jdbc:postgresql://${ProxyEndpoint}:5432/${DatabaseName}?currentSchema=${SchemaName}&sslmode=require"
           QUARKUS_DATASOURCE_USERNAME: !Ref DatabaseUser
+          UAC_DATABASE_HOST: !Ref ProxyEndpoint
           QUARKUS_OIDC_AUTH_SERVER_URL: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
           QUARKUS_LOG_LEVEL: INFO
       Policies:
