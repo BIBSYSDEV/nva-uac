@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  nva-uac application: one Lambda function behind an HTTP API with a JWT authoriser on the NVA
-  user pool, mapped onto the shared API domain, plus the CodeBuild projects that migrate and
-  rehearse inside the VPC. Reads the data tier from SSM. Deployed by the NVA CodePipeline from
+  nva-uac application: one Lambda function behind a REST API mapped onto the shared API domain,
+  with Quarkus OIDC authorising every request (ADR 0006), plus the CodeBuild projects that migrate
+  and rehearse inside the VPC. Reads the data tier from SSM. Deployed by the NVA CodePipeline from
   packaged.yaml (ADR 0005).
 
 Parameters:
@@ -22,7 +22,7 @@ Parameters:
   BackendClientId:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /NVA/BackendClientId
-    Description: The client whose tokens the authoriser accepts.
+    Description: The client whose tokens the function accepts.
   SlackSnsArn:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /NVA/Monitoring/SlackSnsArn
@@ -113,6 +113,7 @@ Resources:
           QUARKUS_DATASOURCE_USERNAME: !Ref DatabaseUser
           UAC_DATABASE_HOST: !Ref ProxyEndpoint
           QUARKUS_OIDC_AUTH_SERVER_URL: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
+          UAC_CLIENT_ID: !Ref BackendClientId
           QUARKUS_LOG_LEVEL: INFO
           # REST API events from the shared domain keep the base path in the path (ADR 0006)
           QUARKUS_HTTP_ROOT_PATH: !Sub "/${CustomDomainBasePath}"
@@ -125,10 +126,17 @@ Resources:
               Resource: !Ref ProxyConnectResource
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref HttpApi
+            RestApiId: !Ref RestApi
             Path: /{proxy+}
+            Method: ANY
+        # The base path itself, so it gets the service's answer rather than the gateway's
+        ApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /
             Method: ANY
 
   MigrationRole:
@@ -348,31 +356,31 @@ Resources:
       SchemaName: !Ref SchemaName
       SourceLocation: !Sub "${MigrationSourceBucket}/${MigrationSourceKey}"
 
-  HttpApi:
-    Type: AWS::Serverless::HttpApi
+  # No authoriser and no cache: Quarkus OIDC authorises every request (ADR 0006)
+  RestApi:
+    Type: AWS::Serverless::Api
     Properties:
-      StageName: $default
-      Auth:
-        DefaultAuthorizer: NvaJwt
-        Authorizers:
-          NvaJwt:
-            IdentitySource: $request.header.Authorization
-            JwtConfiguration:
-              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
-              audience:
-                - !Ref BackendClientId
-      AccessLogSettings:
+      Name: !Ref AWS::StackName
+      StageName: Prod
+      # Any value here stops SAM from also creating a stage named Stage
+      OpenApiVersion: "3.0.1"
+      EndpointConfiguration:
+        Type: REGIONAL
+      # The Quarkus REST extension base64-encodes responses that are not text, such as pictures
+      # later (D8); this lets the gateway decode them, and encode binary request bodies
+      BinaryMediaTypes:
+        - "*~1*"
+      AccessLogSetting:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-        Format: '{ "apiId": "$context.apiId", "requestId": "$context.requestId", "integrationId": "$context.integration.requestId", "requestTime": "$context.requestTime", "requestTimeEpoch": "$context.requestTimeEpoch", "ip": "$context.identity.sourceIp", "httpMethod": "$context.httpMethod", "path": "$context.path", "routeKey": "$context.routeKey", "status": "$context.status", "latency": "$context.integration.latency", "userAgent": "$context.identity.userAgent", "error.message": "$context.error.message" }'
+        Format: '{ "apiId": "$context.apiId", "requestId": "$context.requestId", "integrationId": "$context.integration.requestId", "requestTime": "$context.requestTime", "requestTimeEpoch": "$context.requestTimeEpoch", "ip": "$context.identity.sourceIp", "httpMethod": "$context.httpMethod", "path": "$context.path", "resourcePath": "$context.resourcePath", "status": "$context.status", "latency": "$context.integration.latency", "userAgent": "$context.identity.userAgent", "error.message": "$context.error.message" }'
 
-  ApiMapping:
-    Type: AWS::ApiGatewayV2::ApiMapping
-    DependsOn: HttpApiApiGatewayDefaultStage
+  BasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
     Properties:
-      ApiId: !Ref HttpApi
+      BasePath: !Ref CustomDomainBasePath
       DomainName: !Ref ApiDomain
-      Stage: $default
-      ApiMappingKey: !Ref CustomDomainBasePath
+      RestApiId: !Ref RestApi
+      Stage: !Ref RestApi.Stage
 
   ErrorRateAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -395,10 +403,12 @@ Resources:
           MetricStat:
             Metric:
               Namespace: AWS/ApiGateway
-              MetricName: 5xx
+              MetricName: 5XXError
               Dimensions:
-                - Name: ApiId
-                  Value: !Ref HttpApi
+                - Name: ApiName
+                  Value: !Ref AWS::StackName
+                - Name: Stage
+                  Value: !Ref RestApi.Stage
             Period: 300
             Stat: Sum
         - Id: requests
@@ -408,8 +418,10 @@ Resources:
               Namespace: AWS/ApiGateway
               MetricName: Count
               Dimensions:
-                - Name: ApiId
-                  Value: !Ref HttpApi
+                - Name: ApiName
+                  Value: !Ref AWS::StackName
+                - Name: Stage
+                  Value: !Ref RestApi.Stage
             Period: 300
             Stat: Sum
 
@@ -423,8 +435,10 @@ Resources:
       Namespace: AWS/ApiGateway
       MetricName: Latency
       Dimensions:
-        - Name: ApiId
-          Value: !Ref HttpApi
+        - Name: ApiName
+          Value: !Ref AWS::StackName
+        - Name: Stage
+          Value: !Ref RestApi.Stage
       ExtendedStatistic: p95
       Period: 300
       EvaluationPeriods: 3
@@ -437,5 +451,5 @@ Outputs:
     Description: The API under the shared domain.
     Value: !Sub "https://${ApiDomain}/${CustomDomainBasePath}"
   ExecuteApiUrl:
-    Description: The API's own endpoint, for smoke tests before the mapping is trusted.
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: The API on its own endpoint, with the stage and the base path, for smoke tests.
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${RestApi.Stage}/${CustomDomainBasePath}"

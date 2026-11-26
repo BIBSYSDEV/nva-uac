@@ -6,8 +6,10 @@ adapter (ADR 0006). SnapStart is enabled so the JVM is restored from a snapshot 
 
 `./gradlew :app-lambda:build` produces `build/function.zip`. The SAM function uses it with the
 handler `io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest` on the `java25`
-runtime. Configuration that differs per environment, the OIDC issuer and the data source, is
-supplied by the deployment as environment variables.
+runtime. Configuration that differs per environment, the OIDC issuer, the backend client and the
+data source, is supplied by the deployment as environment variables. The gateway has no
+authoriser, so every path, `/q/health` and `/q/openapi` included, needs a token issued to the
+backend client.
 
 On AWS the data source logs in to RDS Proxy with an IAM authentication token from the
 Quarkiverse Amazon RDS credentials provider, so this module, unlike `app-server`, depends on the

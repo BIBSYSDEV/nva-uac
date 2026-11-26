@@ -1,6 +1,7 @@
 package no.sikt.nva.uac.lambda;
 
 import static io.restassured.RestAssured.given;
+import static no.sikt.nva.uac.testing.MockIssuer.tokenForAnotherClient;
 import static no.sikt.nva.uac.testing.MockIssuer.tokenWithScopes;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,6 +42,18 @@ class LambdaWalkingSkeletonTest {
     assertThat(response.jsonPath().getMap(WHOLE_BODY))
         .isEqualTo(
             Map.of("id", UIO, "name", Map.of("nb", "Universitetet i Oslo"), "acronym", "UiO"));
+  }
+
+  @Test
+  void shouldRejectATokenIssuedToAnotherClient() {
+    var response =
+        given()
+            .auth()
+            .oauth2(tokenForAnotherClient(Scopes.ORGANISATION_READ))
+            .when()
+            .get(ORGANISATION, UIO);
+
+    assertThat(response.statusCode()).isEqualTo(UNAUTHORIZED);
   }
 
   @Test

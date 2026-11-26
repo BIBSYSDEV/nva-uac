@@ -103,8 +103,8 @@ These are properties of the old transport, not of the capability. They go away:
 - Legacy organisation v1 recursion and the `version=` content negotiation [2.6, 5.4].
 - Facets URI rebuild after decoding [2.8].
 - Identifier leniency (`+5`, `007`) [2.7]. Identifiers are validated strictly.
-- The 3600 s and 300 s API Gateway caches with incomplete keys [5.1, 8, 9]. HTTP API v2 has no
-  cache (D7).
+- The 3600 s and 300 s API Gateway caches with incomplete keys [5.1, 8, 9]. The REST API has its
+  cache left off (D7).
 - Error-text sniffing ("already exists") [10.2].
 
 ## 4. Architecture
@@ -126,12 +126,12 @@ nva-uac/
   adapter-cipher-kms/            NIN cipher port on KMS envelope encryption + Secrets Manager (AWS)
   adapter-cipher-local/          NIN cipher port on a mounted key (local, EKS, private cloud)
   adapter-http/                  Quarkus REST resources, DTOs, OpenAPI, problem+json, OIDC scope checks
-  app-lambda/                    Quarkus app: adapter-http + Amazon Lambda HTTP extension, SnapStart
+  app-lambda/                    Quarkus app: adapter-http + Amazon Lambda REST extension, SnapStart
   app-server/                    Quarkus app: adapter-http + HTTP server, Jib image, health, metrics
   migration/                     Cristin database -> nva-uac: SQL, reconciliation and fitness reports
   ontology/                      Turtle ontology and Jena round-trip tests; never on a runtime classpath
   acceptance-tests/              BDD through HTTP; Dev Services PostgreSQL locally, a base URL when deployed
-  template.yaml                  SAM application: HTTP API v2, Lambda, the migration projects; the root, as the pipeline expects
+  template.yaml                  SAM application: REST API, Lambda, the migration projects; the root, as the pipeline expects
   infrastructure/                the data tier: Aurora, RDS Proxy, security groups; network stack if D14 needs it
 ```
 
@@ -202,9 +202,10 @@ representations are produced by Titanium JSON-LD or by direct serialisation.
 ## 6. Security
 
 - **Authentication**: OAuth2 client credentials, validated in the application by Quarkus OIDC
-  against a configurable issuer and JWKS (issuer, audience, expiry, signature). On AWS the
-  issuer is the NVA Cognito user pool, and the API Gateway JWT authoriser is a second check in
-  front. On EKS and private cloud the issuer is whatever that environment provides.
+  against a configurable issuer and JWKS (issuer, expiry, signature). On AWS the issuer is the
+  NVA Cognito user pool, Quarkus also checks the calling client, and the gateway has no
+  authoriser (ADR 0006). On EKS and private cloud the issuer is whatever that environment
+  provides.
 - **Scopes** (D12): `uac/organisation.read`, `uac/person.read`, `uac/person.sensitive.read`,
   `uac/person.write`, `uac/project.read`, `uac/project.write`, `uac/reference.read`, defined in
   the OpenAPI and mapped to use cases in `adapter-http`. Until the resource server exists,
@@ -229,10 +230,9 @@ representations are produced by Titanium JSON-LD or by direct serialisation.
 
 ### 7.1 AWS (first target)
 
-- API Gateway HTTP API (v2) with a JWT authoriser on the NVA Cognito issuer, attached to the
-  shared custom domain from `/NVA/ApiDomain` through an API mapping. Confirm in Phase 0 that a
-  v2 mapping attaches to that domain.
-- One Lambda, Java 25, SnapStart, Amazon Lambda HTTP extension (D7), published alias. arm64 if
+- API Gateway REST API with a Regional endpoint and no authoriser, attached to the shared custom
+  domain from `/NVA/ApiDomain` through a base path mapping (ADR 0006).
+- One Lambda, Java 25, SnapStart, Amazon Lambda REST extension (D7), published alias. arm64 if
   SnapStart supports it in the region, otherwise x86_64; measured in Phase 0.
 - Lambda in a VPC (D14) with RDS Proxy and IAM authentication to the proxy. The Agroal pool
   needs a credentials provider that refreshes the IAM token.
@@ -338,7 +338,7 @@ migrated data, behind configuration. Production switches once, in Phase 9.
 
 | Phase | Slice                                                                                                                                                                                                                                                                                                                                                           | Exit criterion                                                                                                                                                                       |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0     | Walking skeleton: `GET /organisations/{id}` end to end. Gradle modules with Quarkus and the nva plugins, JaCoCo at 100 %, PMD and Error Prone, OpenAPI and Spectral, SAM deploy with HTTP API v2 and JWT authoriser, VPC, Aurora Serverless v2 and RDS Proxy (D14, D15), `quarkus dev` against local PostgreSQL, first rehearsal migration of units and persons | One request round-trips in dev on the shared domain. Cold start with SnapStart and warm p95 measured on rehearsal data; native image decided (D10). Scope registration agreed (D12). |
+| 0     | Walking skeleton: `GET /organisations/{id}` end to end. Gradle modules with Quarkus and the nva plugins, JaCoCo at 100 %, PMD and Error Prone, OpenAPI and Spectral, SAM deploy with a REST API on the shared domain (ADR 0006), VPC, Aurora Serverless v2 and RDS Proxy (D14, D15), `quarkus dev` against local PostgreSQL, first rehearsal migration of units and persons | One request round-trips in dev on the shared domain. Cold start with SnapStart and warm p95 measured on rehearsal data; native image decided (D10). Scope registration agreed (D12). |
 | 1     | Organisation: get with hierarchy, search, institution resolution, Norwegian units export                                                                                                                                                                                                                                                                        | nva-cristin-service organisation module switched in dev and test. Consumers of `units-norway.json` known.                                                                            |
 | 2     | Person login aggregate: resolve by NIN, get by id, create-if-missing, affiliations resolved                                                                                                                                                                                                                                                                     | nva-identity-service `CristinPersonRegistry` replaced in dev and test. nva-uac scopes live in the user pool. Narrowest contract, highest value.                                      |
 | 3     | Reference data: positions, countries, funding sources, keywords, project categories                                                                                                                                                                                                                                                                             | Reference modules switched in dev and test.                                                                                                                                          |
@@ -363,7 +363,7 @@ Phase 2 before Phase 4 is deliberate: the identity-service contract is four requ
 | Quarkus with the shared nva Gradle plugins, Error Prone, Spotless and JaCoCo at 100 %.                  | Proven in Phase 0 before any slice is built. Generated classes excluded from coverage.                                                                                              |
 | Java cold start on Lambda for "very quick" lookups.                                                     | SnapStart, measured in Phase 0. Native image is the escalation (D10); it needs reflection configuration for Jackson and jOOQ. Provisioned concurrency for the login path if needed. |
 | IAM authentication to RDS Proxy from the Agroal pool.                                                   | Credentials provider that refreshes the token; proven in Phase 0.                                                                                                                   |
-| HTTP API v2 mapping on the shared REST-era custom domain.                                               | Verify in Phase 0; fall back to a separate domain if it does not attach.                                                                                                            |
+| HTTP API v2 mapping on the shared REST-era custom domain.                                               | Settled by ADR 0006: the shared domain is edge-optimized, so the API is a REST API. |
 | Scope names and the Cognito resource server are owned by the identity team (D12).                       | Agree names in Phase 0; pull request merged before Phase 2.                                                                                                                         |
 | Volume: persons, employments and projects in Cristin are large.                                         | Fitness tests run on rehearsal data from Phase 0 on.                                                                                                                                |
 | Serverless v2 capacity scaling adds latency on load spikes, and the login path is latency-sensitive.    | Set the production minimum ACU from the fitness run so the working set stays in the buffer cache; raise it or move to provisioned instances only on measured evidence (D15).        |

@@ -19,18 +19,19 @@ The AWS deployment, as two stacks per account.
   `/NVA/UAC/Database/MigrationConnectPolicyArn`, which the migration project's role attaches.
 
 - `template.yaml`, at the repository root where the pipeline and the shared workflow expect it,
-  is the SAM application stack: the Lambda function, the HTTP API with its JWT authoriser, the
-  API mapping on the shared domain, the alarms, and the CodeBuild projects that migrate and
-  rehearse inside the VPC. The error-rate alarm counts the 5xx responses clients receive from
+  is the SAM application stack: the Lambda function, the REST API without an authoriser, the
+  base path mapping on the shared domain, the alarms, and the CodeBuild projects that migrate
+  and rehearse inside the VPC. The error-rate alarm counts the 5xx responses clients receive from
   the API, since the Quarkus adapter turns an exception into a 500 response that Lambda counts
   as a successful invocation. The latency alarm reads the API's latency for the same reason: the
   function's duration leaves out SnapStart restores and the gateway itself.
 
 The shared domain is an API Gateway custom domain defined in `nva-common-resources`, and it is
-edge-optimized. An HTTP API can only be mapped onto a Regional custom domain, so `ApiMapping`
-cannot attach to the shared domain as it stands (PLAN.md section 11); AWS WAF does not support
-HTTP APIs either, should this API ever need it. How to settle it, a REST API, a domain of its own
-or CloudFront in front, is decided before the first deploy and recorded as an ADR.
+edge-optimized, so the API is a REST API with a Regional endpoint, as the other NVA APIs are
+(ADR 0006). Its events keep the base path in the path, so the function's root path is the base
+path, and a smoke test on the API's own endpoint goes to `ExecuteApiUrl`, which has the stage
+and the base path in it. Quarkus OIDC authorises every request and only takes tokens issued to
+the backend client.
 
 `./gradlew lintInfrastructure` runs `sam validate --lint` on both, as the pipeline does; it
 needs the SAM CLI, which the shared GitHub workflow does not have, so it is not part of

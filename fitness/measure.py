@@ -124,13 +124,14 @@ def warm_latencies(base_url: str, path: str, token: str, requests: int) -> tuple
     return latencies, statuses
 
 
-def integration_latency(api_id: str, hours: int) -> dict[str, float]:
+def integration_latency(api_name: str, stage: str, hours: int) -> dict[str, float]:
     """The gateway's integration latency percentiles over one period covering the whole window."""
     end = datetime.datetime.now(datetime.timezone.utc)
     start = end - datetime.timedelta(hours=hours)
     result = aws(
         "cloudwatch", "get-metric-statistics", "--namespace", "AWS/ApiGateway",
-        "--metric-name", "IntegrationLatency", "--dimensions", f"Name=ApiId,Value={api_id}",
+        "--metric-name", "IntegrationLatency",
+        "--dimensions", f"Name=ApiName,Value={api_name}", f"Name=Stage,Value={stage}",
         "--start-time", start.isoformat(), "--end-time", end.isoformat(),
         "--period", str(hours * SECONDS_PER_HOUR), "--extended-statistics", "p50", "p95", "p99",
     )
@@ -210,7 +211,8 @@ def main() -> int:
     parser.add_argument("--path", default="/organisations/185.0.0.0")
     parser.add_argument("--token", default=None, help=f"a bearer token with uac/organisation.read; prefer {TOKEN_VARIABLE}")
     parser.add_argument("--function", required=True, help="the Lambda function name, or a prefix matching exactly one")
-    parser.add_argument("--api-id", required=True, help="the HTTP API id")
+    parser.add_argument("--api-name", required=True, help="the REST API name, which is the stack name")
+    parser.add_argument("--stage", default="Prod", help="the REST API stage")
     parser.add_argument("--requests", type=int, default=200)
     parser.add_argument("--hours", type=int, default=24)
     parser.add_argument("--report", type=Path, default=None, help=f"defaults to {DEFAULT_RESULTS_DIRECTORY}/<date>.md")
@@ -223,7 +225,7 @@ def main() -> int:
     init = summarise(durations_from_logs(log_group, arguments.hours, INIT_DURATION_MARKER))
     latencies, statuses = warm_latencies(arguments.base_url, arguments.path, token, arguments.requests)
     warm = summarise(latencies)
-    gateway = integration_latency(arguments.api_id, arguments.hours)
+    gateway = integration_latency(arguments.api_name, arguments.stage, arguments.hours)
 
     report = arguments.report or DEFAULT_RESULTS_DIRECTORY / f"{datetime.date.today().isoformat()}.md"
     write_report(report, arguments, function["FunctionName"], restore, init, warm, statuses, gateway)
