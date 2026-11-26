@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(':assembly'))
-    implementation(libs.quarkus.amazon.lambda.http)
+    implementation(libs.quarkus.amazon.lambda.rest)
     // IAM authentication to RDS Proxy; on AWS only, so app-server stays free of the AWS SDK
     implementation(enforcedPlatform(libs.quarkus.amazon.services.bom))
     implementation(libs.quarkus.amazon.rds)

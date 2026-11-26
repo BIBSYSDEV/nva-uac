@@ -1,8 +1,8 @@
 # app-lambda
 
-The application as an AWS Lambda function: the `assembly` behind the Amazon Lambda HTTP
-extension, which turns API Gateway HTTP API (v2) events into ordinary requests for the HTTP
-adapter. SnapStart is enabled so the JVM is restored from a snapshot instead of started.
+The application as an AWS Lambda function: the `assembly` behind the Amazon Lambda REST
+extension, which turns API Gateway REST API (v1) proxy events into ordinary requests for the HTTP
+adapter (ADR 0006). SnapStart is enabled so the JVM is restored from a snapshot instead of started.
 
 `./gradlew :app-lambda:build` produces `build/function.zip`. The SAM function uses it with the
 handler `io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest` on the `java25`
