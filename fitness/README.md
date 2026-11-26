@@ -9,12 +9,12 @@ export UAC_TOKEN="$(...)"
 python3 -I fitness/measure.py \
   --base-url https://api.dev.nva.aws.unit.no/uac \
   --function nva-uac-dev-ApiFunction \
-  --api-id a1b2c3d4
+  --api-name <the application stack's name>
 ```
 
 - **Token.** Read from `UAC_TOKEN`, so it stays out of the process list and shell history;
-  `--token` remains as a fallback. The token is one the stack's JWT authoriser accepts: issued
-  by the NVA Cognito user pool for the backend client, with the read scope. Fetching it inside
+  `--token` remains as a fallback. The token is one the function accepts: issued by the NVA
+  Cognito user pool for the backend client, with the read scope. Fetching it inside
   the script waits on the backend client's credentials being available to the runner, so for
   Phase 0 it is obtained by hand.
 - **Function.** The full name, or a prefix that matches exactly one function in the account;

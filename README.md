@@ -18,7 +18,7 @@ system of record.
 ## In one paragraph
 
 A Quarkus application over PostgreSQL, built as ports and adapters with a framework-free core,
-deployed first to AWS Lambda behind an API Gateway HTTP API, later as the same image on EKS and
+deployed first to AWS Lambda behind an API Gateway REST API, later as the same image on EKS and
 on a private cloud. Data is migrated from Cristin's database in rehearsals until the acceptance
 and fitness tests pass, then once for real in a closed weekend window.
 

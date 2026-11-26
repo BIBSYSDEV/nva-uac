@@ -20,6 +20,20 @@ class MockIssuerTest {
   }
 
   @Test
+  void shouldNameTheTrustedClient() {
+    var token = MockIssuer.tokenWithScopes(READ);
+
+    assertThat(payloadOf(token)).contains("\"client_id\":\"" + MockIssuer.CLIENT + "\"");
+  }
+
+  @Test
+  void shouldNameAnotherClientOnRequest() {
+    var token = MockIssuer.tokenForAnotherClient(READ);
+
+    assertThat(payloadOf(token)).contains("\"client_id\":\"" + MockIssuer.ANOTHER_CLIENT + "\"");
+  }
+
+  @Test
   void shouldNameAnotherIssuerOnRequest() {
     var token = MockIssuer.tokenFromAnotherIssuer(READ);
 
