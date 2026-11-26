@@ -23,8 +23,10 @@ The alternatives considered:
 
 - Sharing the existing private subnet and NAT gateway: one subnet cannot carry Aurora, and
   nva-uac's outbound traffic would leave from the handle service's fixed address.
-- A network of nva-uac's own with VPC endpoints only: the build dependencies need the internet,
-  and AWS PrivateLink does not serve a user pool that has a domain.
+- VPC endpoints instead of a NAT gateway, in this VPC or one of nva-uac's own: the migration
+  downloads its build dependencies from the internet, and AWS PrivateLink does not serve a user
+  pool that has a domain, so a NAT gateway is needed anyway and the endpoints would cost about as
+  much on top.
 - A network of nva-uac's own with a NAT gateway: the same result as the decision below, with a
   second VPC to run.
 
