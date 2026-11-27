@@ -2,16 +2,22 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   nva-uac data tier: Aurora PostgreSQL Serverless v2 with a writer and a reader, behind RDS Proxy,
   encrypted with the AWS-managed keys. Deployed once per account; the application stacks read its
-  outputs from SSM. The VPC and subnets are inputs, so a shared network or a dedicated one both
-  fit.
+  outputs from SSM. The network is nva-uac's part of the static-IP VPC in nva-common-resources,
+  read from SSM (ADR 0007).
 
 Parameters:
   VpcId:
-    Type: AWS::EC2::VPC::Id
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::VPC::Id>
+    Default: /NVA/EIP/VPC/id
     Description: The VPC the database, the proxy and the application run in.
   PrivateSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Private subnets in at least two availability zones.
+    Type: AWS::SSM::Parameter::Value<List<AWS::EC2::Subnet::Id>>
+    Default: /NVA/EIP/UAC/PrivateSubnetIds
+    Description: nva-uac's private subnets, one per zone, in the order of AvailabilityZones.
+  AvailabilityZones:
+    Type: AWS::SSM::Parameter::Value<List<AWS::EC2::AvailabilityZone::Name>>
+    Default: /NVA/EIP/UAC/AvailabilityZones
+    Description: The zones of those subnets; the writer starts in the first, the reader in the second.
   EngineVersion:
     Type: String
     Default: "17.5"
@@ -36,9 +42,10 @@ Parameters:
     Description: Fixed at the first deployment; a change replaces the cluster.
   Environment:
     Type: String
-    Default: dev
     AllowedValues: [dev, test, e2e, sandbox, prod]
-    Description: Names the cluster and the proxy; decides deletion protection and backup retention.
+    Description: >
+      Names the cluster and the proxy; decides deletion protection and backup retention. No
+      default, so a deploy names its environment.
   LogRetentionDays:
     Type: Number
     Default: 90
@@ -119,15 +126,19 @@ Resources:
       DBClusterIdentifier: !Ref Cluster
       Engine: aurora-postgresql
       DBInstanceClass: db.serverless
+      AvailabilityZone: !Select ["0", !Ref AvailabilityZones]
       PubliclyAccessible: false
       PromotionTier: 0
 
   Reader:
     Type: AWS::RDS::DBInstance
+    # Aurora makes the first instance the writer, so the reader waits for it
+    DependsOn: Writer
     Properties:
       DBClusterIdentifier: !Ref Cluster
       Engine: aurora-postgresql
       DBInstanceClass: db.serverless
+      AvailabilityZone: !Select ["1", !Ref AvailabilityZones]
       PubliclyAccessible: false
       PromotionTier: 1
 
