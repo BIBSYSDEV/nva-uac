@@ -33,11 +33,12 @@ The alternatives considered:
 ## Decision
 
 nva-uac gets a network of its own inside the static-IP VPC. `nva-common-resources` gains two
-private subnets in fixed availability zones, a route table of their own, and a NAT gateway with
-its own address in the existing public subnet, all published in SSM. The existing subnets and the
-handle service's NAT gateway stay as they are. The data tier reads the VPC and the two subnets
-from SSM and places the writer and the reader in one zone each. This record supersedes the clause
-of ADR 0001 that leaves D14 to the Phase 0 record.
+private subnets in zones a and b, a route table of their own, and a NAT gateway with its own
+address in a public subnet of its own in zone a. The private subnets, their zones and the
+address are published in SSM. The existing subnets and the handle service's NAT gateway stay as
+they are. The data tier reads the VPC, the two subnets and their zones from SSM and places the
+writer and the reader in one zone each. This record supersedes the clause of ADR 0001 that leaves
+D14 to the Phase 0 record.
 
 ## Consequences
 

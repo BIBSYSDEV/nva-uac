@@ -6,12 +6,17 @@ The AWS deployment, as two stacks per account.
   security groups, the Aurora PostgreSQL Serverless v2 cluster with a writer and a reader, and
   RDS Proxy with a read-only endpoint. Storage and the master secret are encrypted with the
   AWS-managed keys. It publishes what the application needs under `/NVA/UAC/...` in SSM,
-  following the house convention. The VPC and subnets are inputs (D14).
+  following the house convention. The VPC, nva-uac's two private subnets and their zones come
+  from SSM, published by `nva-common-resources` (ADR 0007); the writer starts in the first zone
+  and the reader in the second, and a failover swaps them.
 
   Fixed at the first deployment, because a change replaces the cluster and starts from an empty
   database: `DatabaseName`, `MasterUsername`, the cluster identifier derived from `Environment`,
   and the subnet group. `UpdateReplacePolicy: Snapshot` keeps a snapshot of the old cluster if
-  that happens by mistake, but the data has to be restored by hand.
+  that happens by mistake, but the data has to be restored by hand. The network is fixed too: the
+  proxy and its read-only endpoint have fixed names and cannot move to other subnets in place.
+  The stack reads `/NVA/EIP/VPC/id` and `/NVA/EIP/UAC/*` again on every update, so once those
+  change, every later update fails, whatever it changes, until the old values are back.
 
   The proxy requires IAM authentication. Every caller, the application and the migration step
   alike, connects with an IAM authentication token, never with the master password.
